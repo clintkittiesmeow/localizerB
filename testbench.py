@@ -49,6 +49,6 @@ if __name__ == "__main__":
         delay = int(rpm) * 400/60
         degrees = input("How many degrees? ")
         steps = round(int(degrees) / .9)
-
+        move(delay, steps)
 
 
