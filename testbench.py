@@ -34,10 +34,10 @@ def move(delay, steps):
         direction = 1
 
     for step in range(0, steps):
-        GPIO.output(coil_A_1_blk, step[0])
-        GPIO.output(coil_B_1_red, step[1])
-        GPIO.output(coil_A_2_grn, step[2])
-        GPIO.output(coil_B_2_blu, step[3])
+        GPIO.output(coil_A_1_blk, seq[seq_position][0])
+        GPIO.output(coil_B_1_red, seq[seq_position][1])
+        GPIO.output(coil_A_2_grn, seq[seq_position][2])
+        GPIO.output(coil_B_2_blu, seq[seq_position][3])
 
         seq_position = (seq_position + direction) % 4
         time.sleep(delay)
