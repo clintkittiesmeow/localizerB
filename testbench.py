@@ -34,10 +34,14 @@ def move(delay, steps):
         direction = 1
 
     for step in range(0, steps):
+        print("Setting coils to {}".format(seq[seq_position]))
         GPIO.output(coil_A_1_blk, seq[seq_position][0])
         GPIO.output(coil_B_1_red, seq[seq_position][1])
         GPIO.output(coil_A_2_grn, seq[seq_position][2])
         GPIO.output(coil_B_2_blu, seq[seq_position][3])
+
+
+
 
         seq_position = (seq_position + direction) % 4
         time.sleep(delay)
@@ -49,6 +53,7 @@ if __name__ == "__main__":
         delay = int(rpm) * 400/60
         degrees = input("How many degrees? ")
         steps = round(int(degrees) / .9)
+        print("Moving {} steps at {} RPM ({} second delay between steps)".format(steps, rpm, delay))
         move(delay, steps)
 
 
