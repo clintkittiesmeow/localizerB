@@ -50,7 +50,7 @@ def move(delay, steps):
 if __name__ == "__main__":
     while True:
         rpm = input("How quickly would you like to rotate? (RPMs) ")
-        delay = int(rpm) * 400/60
+        delay = 60 / (int(rpm) * 400)
         degrees = input("How many degrees? ")
         steps = round(int(degrees) / .9)
         print("Moving {} steps at {} RPM ({} second delay between steps)".format(steps, rpm, delay))
