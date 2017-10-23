@@ -1,6 +1,7 @@
 from cmd import Cmd
 from localizer.stepper import StepperThread
 from localizer import stepper
+from localizer import wifi
 import localizer
 
 from localizer import utils
@@ -46,18 +47,29 @@ class LocalizerShell(ExitCmd, ShellCmd):
     def __init__(self):
         super(LocalizerShell, self).__init__()
 
+        # Ensure we have root
+        if os.getuid() != 0:
+            print("Error: this application needs root to run correctly. Please run as root.")
+            exit(1)
+
         # Initialize the hardware
-        # Stepper Motor
+        ## Stepper Motor
         self._stepper_commands = queue.Queue()
         self._stepper_response = queue.Queue()
         self._stepper = StepperThread(self._stepper_commands, self._stepper_response)
         self._stepper.start()
-        # WiFi
+        ## WiFi
+        ### Get list of interfaces and those in monitor mode
+        self._interfaces, self._monitors = wifi.get_interfaces()
+        ### Stop monitoring for any interfaces already in monitor mode
+        wifi.cleanup()
+
         # Logging Destination
 
         # Start the command loop - these need to be the last lines in the initializer
         self.prompt = '> '
         self.cmdloop('Welcome to Localizer Shell...')
+
 
     def do_debug(self, args):
         """Sets printing of debug information.
@@ -131,6 +143,32 @@ class LocalizerShell(ExitCmd, ShellCmd):
             except queue.Empty:
                 continue
 
+    def do_init(self, args):
+        """
+        Initialize the specified adapter in monitor mode
+        """
+        try:
+            args = args.split()
+            self._interfaces, self._monitors = wifi.get_interfaces()
+
+            if len(args) <= 0:
+                raise ValueError("You must specify an interface. Interfaces: {}".format(self._interfaces))
+
+            if args[0] not in self._interfaces:
+                raise ValueError("Specified interface ({}) is not valid.".format(args[0]))
+            else:
+                if args[0] in self._monitors:
+                    raise ValueError("Specified interface ({}) is already in monitor mode.".format(args[0]))
+                else:
+                    wifi.enable_monitor_mode(args[0])
+                    self._interfaces, self._monitors = wifi.get_interfaces()
+                    print("Monitor interfaces: {}".format(self._monitors))
+        except ValueError as e:
+            print(e)
+
+
+    def complete_init(self, text, line, begidx, endidx):
+        return [i for i in self._interfaces if i.startswith(text)]
 
     def emptyline(self):
         pass
