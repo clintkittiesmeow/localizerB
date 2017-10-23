@@ -15,6 +15,8 @@ setup(name='localizer',
       install_requires=[
           'RPi.GPIO',
           'xtermcolor',
+          'netifaces',
+          'scapy-python3',
       ],
       entry_points={
           'console_scripts': ['localizer=localizer.main:main'],
