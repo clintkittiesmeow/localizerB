@@ -1,1 +1,5 @@
-debug = 0
+# Shared Variables
+debug = False
+
+
+
