@@ -1,10 +1,9 @@
 from cmd import Cmd
-from localizer.stepper import StepperThread
-from localizer import stepper
+from localizer.antenna import AntennaStepperThread
+from localizer import antenna
 from localizer import wifi
 import localizer
-
-from localizer import utils
+import logging
 
 import os
 import queue
@@ -52,19 +51,22 @@ class LocalizerShell(ExitCmd, ShellCmd):
             print("Error: this application needs root to run correctly. Please run as root.")
             exit(1)
 
+        # Set up logging
+        logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', filename='localizer.log', level=logging.DEBUG)
+
         # Initialize the hardware
         ## Stepper Motor
+        logging.info("Initializing Stepper Motor")
         self._stepper_commands = queue.Queue()
         self._stepper_response = queue.Queue()
-        self._stepper = StepperThread(self._stepper_commands, self._stepper_response)
+        self._stepper = AntennaStepperThread(self._stepper_commands, self._stepper_response)
         self._stepper.start()
         ## WiFi
+        logging.info("Initializing WiFi")
         ### Get list of interfaces and those in monitor mode
         self._interfaces, self._monitors = wifi.get_interfaces()
         ### Stop monitoring for any interfaces already in monitor mode
         wifi.cleanup()
-
-        # Logging Destination
 
         # Start the command loop - these need to be the last lines in the initializer
         self.prompt = '> '
@@ -74,25 +76,12 @@ class LocalizerShell(ExitCmd, ShellCmd):
     def do_debug(self, args):
         """Sets printing of debug information.
 
-        Arguments:
-        0: No debug information is printed
-        1: Errors and state changes are printed
-        2: Low priority logs are printed
-        3: Repeating messages are printed
+        No arguments, just toggles debug on or off
         """
 
-        try:
-            number = int(args)
+        localizer.debug = not localizer.debug
 
-            # Check for valid number
-            if number < 0 or number > len(utils.Level)-1:
-                raise ValueError("Out of Bounds Error")
-            else:
-                localizer.debug = number
-        except ValueError as e:
-            print("{}\nYou did not provide a valid number (0-{}): '{}'".format(e, len(utils.Level)-1, args))
-
-        print("Debug is set to {} ({})".format(localizer.debug, utils.Level(localizer.debug).name))
+        print("Debug is set to {}".format(localizer.debug))
 
     def do_move(self, args):
         """
@@ -113,15 +102,15 @@ class LocalizerShell(ExitCmd, ShellCmd):
             args = args.lower().strip().split()
 
             if len(args) == 3:
-                command = stepper.move_degree(float(args[0]), int(args[1]), float(args[2]))
+                command = antenna.move_degree(float(args[0]), int(args[1]), float(args[2]))
 
             elif len(args) == 4:
 
                 if args[0].startswith("deg"):
-                    command = stepper.move_degree(float(args[1]), int(args[2]), float(args[3]))
+                    command = antenna.move_degree(float(args[1]), int(args[2]), float(args[3]))
 
                 elif args[0].startswith("step"):
-                    command = stepper.move(float(args[1]), int(args[2]), int(args[3]))
+                    command = antenna.move(float(args[1]), int(args[2]), int(args[3]))
 
                 else:
                     raise ValueError("Wrong command syntax")
@@ -139,7 +128,7 @@ class LocalizerShell(ExitCmd, ShellCmd):
             try:
                 response = self._stepper_response.get(True, 1/1000)
                 self._stepper_response.task_done()
-                utils.log_message("Got a response: {}".format(response), utils.Level.MEDIUM)
+                logging.debug("Got a response: {}".format(response))
             except queue.Empty:
                 continue
 
