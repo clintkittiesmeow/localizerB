@@ -129,9 +129,9 @@ class Capture:
 
         # Print out timer to console
         for sec in range(self._duration):
+            time.sleep(1)
             print("Capturing packets for {}/{}s\r".format(str(sec+1), str(self._duration)), end="")
             sys.stdout.flush()
-            time.sleep(1)
 
         print("\nProcessing results...")
         sys.stdout.flush()
