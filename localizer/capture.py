@@ -271,7 +271,7 @@ class CaptureThread(threading.Thread):
             _num_cap_idx = lines[2].decode().find("Packets captured: ")
             if _num_cap_idx >= 0:
                 logging.getLogger('global').info("Captured {} packets"
-                                                 .format(lines[2].decode().strip()[_num_cap_idx+18:]))
+                                                 .format(lines[2].decode().strip()[_num_cap_idx+17:]))
 
             self._command_queue.task_done()
             self._response_queue.join()
