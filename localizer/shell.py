@@ -121,7 +121,7 @@ class LocalizerShell(ExitCmd, ShellCmd):
         _command_queue.join()
 
         _response_queue.get()
-        _response_queue.join()
+        _response_queue.task_done()
 
     def do_set(self, args):
         """
