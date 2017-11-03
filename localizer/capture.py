@@ -165,18 +165,21 @@ class Capture:
             pacwriter.writeheader()
 
             for packet in cap:
-                # Get time, bssid & db from packet
-                ptime = float(packet.frame_info.time_epoch.main_field.show)
-                pbssid = packet.wlan.bssid.main_field.show
-                pssi = int(packet.wlan_radio.signal_dbm.main_field.show)
-                pchannel = int(packet.wlan_radio.channel.main_field.show)
-                pbearing = None
-                plat = None
-                plon = None
-                palt = None
-                plat_err = None
-                plon_err = None
-                palt_err = None
+                try:
+                    # Get time, bssid & db from packet
+                    ptime = float(packet.frame_info.time_epoch.main_field.show)
+                    pbssid = packet.wlan.bssid.main_field.show
+                    pssi = int(packet.wlan_radio.signal_dbm.main_field.show)
+                    pchannel = int(packet.wlan_radio.channel.main_field.show)
+                    pbearing = None
+                    plat = None
+                    plon = None
+                    palt = None
+                    plat_err = None
+                    plon_err = None
+                    palt_err = None
+                except AttributeError:
+                    continue
 
                 # Lookup bearing in _antenna_results
                 for tstamp, bearing in sorted(_antenna_results.items(), reverse=True):
