@@ -1,11 +1,12 @@
 from cmd import Cmd
-from localizer import wifi
-from localizer import capture
+from localizer import wifi, capture, antenna
 from distutils.util import strtobool
+from threading import Event
 import localizer
 import logging
 import os
 import pprint
+import queue
 
 
 # Helper class for exit functionality
@@ -85,6 +86,42 @@ class LocalizerShell(ExitCmd, ShellCmd):
                 logging.getLogger('global').error("Could not understand debug value '{}'".format(args[0]))
 
         print("Debug is '{}'".format(localizer.debug))
+
+    def do_test(self, args):
+        """
+        Test the antenna rotation
+
+        :param args: Provide a duration and degrees (degrees defaults to 360 if not provided)
+        :type args: str
+        """
+
+        dur = 0
+        degrees = 360
+
+        args = args.split()
+        if len(args) > 1:
+            dur = int(args[0])
+            degrees = int(args[1])
+        elif len(args) == 1:
+            dur = int(args[0])
+        else:
+            logging.getLogger('global').error("You must provide an argument")
+            return
+
+        _command_queue = queue.Queue()
+        _response_queue = queue.Queue()
+        _flag = Event()
+        _thread = antenna.AntennaStepperThread(_command_queue, _response_queue, _flag)
+        _thread.start()
+
+        print("Starting antenna test for {}s...".format(dur))
+
+        _command_queue.put((dur, degrees, 0))
+        _flag.set()
+        _command_queue.join()
+
+        _response_queue.get()
+        _response_queue.join()
 
     def do_set(self, args):
         """
