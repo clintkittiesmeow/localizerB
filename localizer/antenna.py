@@ -98,9 +98,9 @@ def antenna_test(args):
         elif len(args) == 1:
             dur = int(args[0])
         else:
-            return False
+            return None
     except ValueError:
-        return False
+        return None
 
     _command_queue = queue.Queue()
     _response_queue = queue.Queue()
@@ -133,13 +133,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Test the antenna by rotating it a number of degrees in a number of seconds")
     parser.add_argument("duration",
                         help="Number of seconds to rotate the antenna",
-                        type=float)
+                        type=int)
     parser.add_argument("degrees",
                         help="Number of degrees to rotate the antenna",
-                        type=float,
+                        type=int,
                         nargs='?',
                         default=360)
     arguments = parser.parse_args()
 
     response = antenna_test([str(arguments.duration), str(arguments.degrees)])
-
+    if response is None:
+        logging.getLogger('global').error("Antenna test failed")
+    else:
+        print("Antenna test complete")
