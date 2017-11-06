@@ -61,6 +61,8 @@ class AntennaStepperThread(threading.Thread):
             # Wait for the synchronization flag
             self._event_flag.wait()
 
+            self._actual_loop_time = time.time()
+
             # Step through each step
             for step in range(0, pulses):
                 GPIO.output(self.PUL_min, GPIO.HIGH)
@@ -71,12 +73,14 @@ class AntennaStepperThread(threading.Thread):
                 bearing_table[time.time()] = bearing
                 bearing += AntennaStepperThread.degrees_per_microstep
 
+            self._actual_loop_time = (time.time()-self._actual_loop_time)/pulses
+
             GPIO.output(self.ENA_min, GPIO.LOW)
 
             self._command_queue.task_done()
 
             # Tell caller a step is finished
-            self._response_queue.put(bearing_table)
+            self._response_queue.put((bearing_table, wait, self._actual_loop_time))
             self._response_queue.join()
 
 
@@ -117,6 +121,7 @@ def antenna_test(args):
 
     response = _response_queue.get()
     _response_queue.task_done()
+    print("Antenna test complete - Expected loop time: {}s; Actual loop time: {}s".format(response[1], response[2]))
     return response
 
 
@@ -145,5 +150,3 @@ if __name__ == "__main__":
     response = antenna_test([str(arguments.duration), str(arguments.degrees)])
     if response is None:
         logging.getLogger('global').error("Antenna test failed")
-    else:
-        print("Antenna test complete")
