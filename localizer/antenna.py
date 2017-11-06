@@ -6,6 +6,7 @@ import atexit
 import queue
 import argparse
 
+GPIO.setwarnings(False)
 
 class AntennaStepperThread(threading.Thread):
     # Default number of steps per radian
@@ -140,10 +141,5 @@ if __name__ == "__main__":
                         default=360)
     arguments = parser.parse_args()
 
-    if arguments.degrees is not None:
-        response = antenna_test([str(arguments.duration), str(arguments.degrees)])
-    else:
-        response = antenna_test([str(arguments.duration)])
+    response = antenna_test([str(arguments.duration), str(arguments.degrees)])
 
-    if response is None:
-        print("Please provide a duration (in seconds) and degrees (optional, 360 if not supplied)")
