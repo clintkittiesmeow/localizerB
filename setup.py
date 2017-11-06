@@ -21,6 +21,7 @@ setup(
         'RPi.GPIO',
         'pyshark',
         'gpsd-py3',
+        'numpy',
     ],
     entry_points={
         'console_scripts': ['localizer=localizer.main:main'],
