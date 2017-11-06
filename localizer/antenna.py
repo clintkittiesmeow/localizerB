@@ -12,7 +12,7 @@ class AntennaStepperThread(threading.Thread):
     # Default number of steps per radian
     steps_per_revolution = 400
     degrees_per_step = 360 / steps_per_revolution
-    microsteps_per_step = 1
+    microsteps_per_step = 32
     degrees_per_microstep = degrees_per_step / microsteps_per_step
 
     def __init__(self, command_queue, response_queue, event_flag):
@@ -33,6 +33,7 @@ class AntennaStepperThread(threading.Thread):
         self.ENA_min = 16
 
         # Set up GPIO
+        GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.PUL_min, GPIO.OUT, initial=GPIO.LOW)
         GPIO.setup(self.DIR_min, GPIO.OUT)
         GPIO.setup(self.ENA_min, GPIO.OUT)
