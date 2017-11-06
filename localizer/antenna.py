@@ -5,6 +5,8 @@ import logging
 import atexit
 import queue
 import argparse
+import numpy
+from collections import defaultdict
 
 GPIO.setwarnings(False)
 
@@ -43,12 +45,14 @@ class AntennaStepperThread(threading.Thread):
         while True:
             # Execute command (duration, degrees, bearing) tuple
             duration, degrees, bearing = self._command_queue.get()
-
-            pulses = round(degrees / AntennaStepperThread.degrees_per_microstep)
+            degrees_per_microstep = AntennaStepperThread.degrees_per_microstep
+            pulses = round(degrees / degrees_per_microstep)
             wait = duration/pulses
             wait_half = wait/2
 
-            bearing_table = {}
+            # Response value - table of bearings
+            bearing_table = defaultdict(float)
+            #for i in (x * 360/AntennaStepperThread.steps_per_revolution for x in range(bearing, degrees)):
 
             if pulses < 0:
                 GPIO.output(self.DIR_min, GPIO.LOW)
@@ -58,29 +62,45 @@ class AntennaStepperThread(threading.Thread):
 
             GPIO.output(self.ENA_min, GPIO.HIGH)
 
+            # Optimization https://wiki.python.org/moin/PythonSpeed/PerformanceTips
+            now = time.time
+            sleep = time.sleep
+            output = GPIO.output
+
             # Wait for the synchronization flag
             self._event_flag.wait()
 
-            self._actual_loop_time = time.time()
+            curr_loop = 0
+            wait_time = 0
+            loop_time = time.time()
 
             # Step through each step
             for step in range(0, pulses):
-                GPIO.output(self.PUL_min, GPIO.HIGH)
-                time.sleep(wait_half)
-                GPIO.output(self.PUL_min, GPIO.LOW)
-                time.sleep(wait_half)
+                # Calculate remaining time for current loop
+                curr_loop = step*wait + loop_time
+                curr_time = now()
+                output(21, 1)
+                # Wait for half the remaining available time in the loop
+                sleep(wait_half-(curr_time-curr_loop))
+                output(21, 0)
 
-                bearing_table[time.time()] = bearing
-                bearing += AntennaStepperThread.degrees_per_microstep
+                # Put results in response dictionary
+                bearing_table[curr_time] = bearing
+                bearing += degrees_per_microstep
 
-            self._actual_loop_time = (time.time()-self._actual_loop_time)/pulses
+                # Wait remaining loop time, if any
+                wait_time = curr_loop + wait - now()
+                if wait_time < 0:
+                    sleep(wait_time)
+
+            loop_time = (time.time() - loop_time) / pulses
 
             GPIO.output(self.ENA_min, GPIO.LOW)
 
             self._command_queue.task_done()
 
             # Tell caller a step is finished
-            self._response_queue.put((bearing_table, wait, self._actual_loop_time))
+            self._response_queue.put((bearing_table, wait, loop_time))
             self._response_queue.join()
 
 
@@ -123,7 +143,7 @@ def antenna_test(args):
     _response_queue.task_done()
     print("Antenna test complete")
     print("\tExpected loop time:\t{:.15f}s".format(response[1]))
-    print("\tActual loop time:\t{:>.15f}s".format(response[1], response[2]))
+    print("\tActual loop time:\t{:>.15f}s".format(response[2]))
     print("\tActual loop time {:.2%} longer than expected".format((response[2]-response[1])/response[1]))
     return response
 
