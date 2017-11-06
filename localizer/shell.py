@@ -99,29 +99,10 @@ class LocalizerShell(ExitCmd, ShellCmd):
         degrees = 360
 
         args = args.split()
-        if len(args) > 1:
-            dur = int(args[0])
-            degrees = int(args[1])
-        elif len(args) == 1:
-            dur = int(args[0])
-        else:
+        response = antenna.antenna_test(args)
+        if response is None:
             logging.getLogger('global').error("You must provide an argument")
-            return
 
-        _command_queue = queue.Queue()
-        _response_queue = queue.Queue()
-        _flag = Event()
-        _thread = antenna.AntennaStepperThread(_command_queue, _response_queue, _flag)
-        _thread.start()
-
-        print("Starting antenna test for {}s...".format(dur))
-
-        _command_queue.put((dur, degrees, 0))
-        _flag.set()
-        _command_queue.join()
-
-        _response_queue.get()
-        _response_queue.task_done()
 
     def do_set(self, args):
         """

@@ -1,68 +1,18 @@
-# import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
 import time
 import threading
 import logging
-
-
-# def move(delay, steps, step_distance = 1, stepper_steps = 400):
-#     """
-#     Send a command to the supplied stepper motor queue
-#
-#     :param delay: The number of milliseconds between steps
-#     :param steps: The total number of steps to take
-#     :param step_distance: The distance of each step as a multiple of default stepper motor steps.
-#     """
-#
-#     if step_distance < 1:
-#         step_distance = 1
-#
-#     return delay, steps, step_distance
-#
-#
-# def move_degree(rpm, degrees, step_degrees=360 / 400, stepper_steps=400):
-#     """
-#     Send a command to the supplied stepper motor queue
-#
-#     :param rpm: The speed of rotation
-#     :param degrees: The total number of degrees to rotate
-#     :param step_degrees: The degree of each step
-#     :param stepper_steps: The number of stepper motor steps per 360 degrees
-#     """
-#
-#     delay = 60 / (int(rpm) * stepper_steps)
-#     steps = round(degrees / step_degrees)
-#     step_distance = round(step_degrees*stepper_steps/360)
-#
-#     return move(delay, steps, step_distance)
+import atexit
+import queue
+import argparse
 
 
 class AntennaStepperThread(threading.Thread):
-
-    # Default pinout for motor controller:
-    # [0] = enable_pin
-    # [1] = coil A1 (black wire)
-    # [2] = coil A2 (green wire)
-    # [3] = coil B1 (red wire)
-    # [4] = coil B2 (blue wire)
-    pins = [18, 4, 17, 23, 24]
-
-    seq = [[1, 1, 0, 0],
-           [0, 1, 1, 0],
-           [0, 0, 1, 1],
-           [1, 0, 0, 1]]
-
     # Default number of steps per radian
-    radian_steps = 400
-    degrees_per_step = 360/radian_steps
-
-    # Set up GPIO
-    # GPIO.setmode(GPIO.BCM)
-    # GPIO.setup(pins[0], GPIO.OUT)
-    # GPIO.setup(pins[1], GPIO.OUT)
-    # GPIO.setup(pins[2], GPIO.OUT)
-    # GPIO.setup(pins[3], GPIO.OUT)
-    # GPIO.setup(pins[4], GPIO.OUT)
-    # GPIO.output(pins[0], 1)
+    steps_per_revolution = 400
+    degrees_per_step = 360 / steps_per_revolution
+    microsteps_per_step = 1
+    degrees_per_microstep = degrees_per_step / microsteps_per_step
 
     def __init__(self, command_queue, response_queue, event_flag):
 
@@ -77,40 +27,123 @@ class AntennaStepperThread(threading.Thread):
         self._event_flag = event_flag
         self._seq_position = 0
 
+        self.PUL_min = 21
+        self.DIR_min = 20
+        self.ENA_min = 16
+
+        # Set up GPIO
+        GPIO.setup(self.PUL_min, GPIO.OUT, initial=GPIO.LOW)
+        GPIO.setup(self.DIR_min, GPIO.OUT)
+        GPIO.setup(self.ENA_min, GPIO.OUT)
+
     def run(self):
         # Wait for commands in the queue
         while True:
             # Execute command (duration, degrees, bearing) tuple
             duration, degrees, bearing = self._command_queue.get()
 
-            steps = round(degrees / AntennaStepperThread.degrees_per_step)
-            wait = duration/steps
+            pulses = round(degrees / AntennaStepperThread.degrees_per_microstep)
+            wait = duration/pulses
+            wait_half = wait/2
 
             bearing_table = {}
 
-            if steps < 0:
-                direction = -1
-                steps = -steps
+            if pulses < 0:
+                GPIO.output(self.DIR_min, GPIO.LOW)
+                pulses = -pulses
             else:
-                direction = 1
+                GPIO.output(self.DIR_min, GPIO.HIGH)
+
+            GPIO.output(self.ENA_min, GPIO.HIGH)
 
             # Wait for the synchronization flag
             self._event_flag.wait()
 
             # Step through each step
-            for step in range(0, steps):
-                # GPIO.output(self.pins[1], self.seq[self._seq_position][0])
-                # GPIO.output(self.pins[2], self.seq[self._seq_position][1])
-                # GPIO.output(self.pins[3], self.seq[self._seq_position][2])
-                # GPIO.output(self.pins[4], self.seq[self._seq_position][3])
+            for step in range(0, pulses):
+                GPIO.output(self.PUL_min, GPIO.HIGH)
+                time.sleep(wait_half)
+                GPIO.output(self.PUL_min, GPIO.LOW)
+                time.sleep(wait_half)
 
-                self._seq_position = (self._seq_position + direction) % 4
                 bearing_table[time.time()] = bearing
-                bearing += AntennaStepperThread.degrees_per_step
-                time.sleep(wait)
+                bearing += AntennaStepperThread.degrees_per_microstep
+
+            GPIO.output(self.ENA_min, GPIO.LOW)
 
             self._command_queue.task_done()
 
             # Tell caller a step is finished
             self._response_queue.put(bearing_table)
             self._response_queue.join()
+
+
+def antenna_test(args):
+    """
+    Test the antenna rotation
+
+    :param args: A list of string arguments
+    :type args: list[duration, degrees]
+    :return: Returns a dict if the test was successful, None otherwise
+    :rtype: bool
+    """
+    dur = 0
+    degrees = 0
+
+    try:
+        if len(args) >= 2:
+            dur = int(args[0])
+            degrees = int(args[1])
+        elif len(args) == 1:
+            dur = int(args[0])
+        else:
+            return False
+    except ValueError:
+        return False
+
+    _command_queue = queue.Queue()
+    _response_queue = queue.Queue()
+    _flag = threading.Event()
+    _thread = AntennaStepperThread(_command_queue, _response_queue, _flag)
+    _thread.start()
+
+    print("Starting antenna test for {}s, please wait...".format(dur))
+
+    _command_queue.put((dur, degrees, 0))
+    _flag.set()
+    _command_queue.join()
+
+    response = _response_queue.get()
+    _response_queue.task_done()
+    return response
+
+
+@atexit.register
+def cleanup():
+    """
+    Cleanup - ensure GPIO is cleaned up properly
+    """
+
+    GPIO.cleanup()
+
+
+# Script can be run standalone to test the antenna
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Test the antenna by rotating it a number of degrees in a number of seconds")
+    parser.add_argument("duration",
+                        help="Number of seconds to rotate the antenna",
+                        type=float)
+    parser.add_argument("degrees",
+                        help="Number of degrees to rotate the antenna",
+                        type=float,
+                        nargs='?',
+                        default=360)
+    arguments = parser.parse_args()
+
+    if arguments.degrees is not None:
+        response = antenna_test([str(arguments.duration), str(arguments.degrees)])
+    else:
+        response = antenna_test([str(arguments.duration)])
+
+    if response is None:
+        print("Please provide a duration (in seconds) and degrees (optional, 360 if not supplied)")
