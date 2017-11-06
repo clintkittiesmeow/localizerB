@@ -121,7 +121,10 @@ def antenna_test(args):
 
     response = _response_queue.get()
     _response_queue.task_done()
-    print("Antenna test complete - Expected loop time: {}s; Actual loop time: {}s".format(response[1], response[2]))
+    print("Antenna test complete")
+    print("\tExpected loop time:\t{:.15f}s".format(response[1]))
+    print("\tActual loop time:\t{:>.15f}s".format(response[1], response[2]))
+    print("\tActual loop time {:.2%} longer than expected".format((response[2]-response[1])/response[1]))
     return response
 
 
