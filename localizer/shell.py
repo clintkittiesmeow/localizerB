@@ -130,7 +130,7 @@ class LocalizerShell(ExitCmd, ShellCmd):
                 elif param == "hop_int":
                     localizer.params.hop_int = value
                 elif param == "path":
-                    localizer.params.iface = value
+                    localizer.params.path = value
                 elif param == "test":
                     localizer.params.test = value
 
