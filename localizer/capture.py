@@ -97,8 +97,7 @@ class Capture:
         self._capture_thread = CaptureThread(self._capture_command_queue,
                                              self._capture_response_queue,
                                              self._flag,
-                                             self._iface,
-                                             self._duration)
+                                             self._iface)
         self._capture_thread.start()
 
     def capture(self):
