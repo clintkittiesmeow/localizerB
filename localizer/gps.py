@@ -6,15 +6,23 @@ import time
 import os
 from subprocess import Popen
 
+module_logger = logging.getLogger('localizer.gps')
+
 # initialize GPS information
 if shutil.which("gpsd") is None:
-    logging.getLogger('global').error("Required system tool 'gpsd' is not installed")
+    module_logger.error("Required system tool 'gpsd' is not installed")
     exit(1)
 if shutil.which("gpspipe") is None:
-    logging.getLogger('global').error("Required system tool 'gpspipe' is not installed")
+    module_logger.error("Required system tool 'gpspipe' is not installed")
     exit(1)
 gpsd.connect()
-logging.getLogger('global').info("GPS device connected: {}".format(gpsd.device()))
+
+try:
+    dev = gpsd.device()
+    module_logger.info("GPS device connected: {}".format(gpsd.device()))
+except KeyError:
+    module_logger.error("GPS device failed to initialize, please make sure that gpsd can see gps data")
+    exit(1)
 
 # GPS Update frequency - Depends on hardware - eg BU-353-S4 http://usglobalsat.com/store/gpsfacts/bu353s4_gps_facts.html
 _gps_update_frequency = 1
@@ -29,7 +37,7 @@ class GPSThread(threading.Thread):
 
         super().__init__()
 
-        logging.getLogger('global').info("Starting GPS Logging Thread")
+        module_logger.info("Starting GPS Logging Thread")
 
         self.daemon = True
         self._command_queue = command_queue
@@ -37,7 +45,9 @@ class GPSThread(threading.Thread):
         self._event_flag = event_flag
 
     def run(self):
+        module_logger.info("Executing gps thread")
         while True:
+            module_logger.info("Waiting for commands")
             # Get command from command queue
             duration, output = self._command_queue.get()
 
@@ -58,9 +68,9 @@ class GPSThread(threading.Thread):
 
             # Confirm capture file contains gps coordinates
             if os.path.isfile(output):
-                logging.getLogger('global').info("Successfully captured gps nmea data")
+                module_logger.info("Successfully captured gps nmea data")
             else:
-                logging.getLogger('global').error("Could not capture gps nmea data")
+                module_logger.error("Could not capture gps nmea data")
 
             self._command_queue.task_done()
 

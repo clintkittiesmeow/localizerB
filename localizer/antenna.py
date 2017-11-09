@@ -4,11 +4,11 @@ import threading
 import logging
 import atexit
 import queue
-import argparse
-import numpy
-from collections import defaultdict
+import localizer
 
 GPIO.setwarnings(False)
+
+module_logger = logging.getLogger('localizer.antenna')
 
 class AntennaStepperThread(threading.Thread):
     # Default number of steps per radian
@@ -22,7 +22,7 @@ class AntennaStepperThread(threading.Thread):
         # Set up thread
         super().__init__()
 
-        logging.getLogger('global').info("Starting Stepper Thread")
+        module_logger.info("Starting Stepper Thread")
 
         self.daemon = True
         self._command_queue = command_queue
@@ -42,17 +42,15 @@ class AntennaStepperThread(threading.Thread):
 
     def run(self):
         # Wait for commands in the queue
+        module_logger.info("Executing Stepper Thread")
         while True:
+            module_logger.info("Waiting for commands")
             # Execute command (duration, degrees, bearing) tuple
             duration, degrees, bearing = self._command_queue.get()
             degrees_per_microstep = AntennaStepperThread.degrees_per_microstep
             pulses = round(degrees / degrees_per_microstep)
             wait = duration/pulses
             wait_half = wait/2
-
-            # Response value - table of bearings
-            bearing_table = defaultdict(float)
-            #for i in (x * 360/AntennaStepperThread.steps_per_revolution for x in range(bearing, degrees)):
 
             if pulses < 0:
                 GPIO.output(self.DIR_min, GPIO.LOW)
@@ -72,81 +70,35 @@ class AntennaStepperThread(threading.Thread):
 
             curr_loop = 0
             wait_time = 0
-            loop_time = time.time()
+            loop_start_time = time.time()
 
             # Step through each step
             for step in range(0, pulses):
                 # Calculate remaining time for current loop
-                curr_loop = step*wait + loop_time
+                curr_loop = step*wait + loop_start_time
                 curr_time = now()
                 output(21, 1)
                 # Wait for half the remaining available time in the loop
                 sleep(wait_half-(curr_time-curr_loop))
                 output(21, 0)
 
-                # Put results in response dictionary
-                bearing_table[curr_time] = bearing
-                bearing += degrees_per_microstep
-
                 # Wait remaining loop time, if any
                 wait_time = curr_loop + wait - now()
-                if wait_time < 0:
+                if wait_time > 0:
                     sleep(wait_time)
 
-            loop_time = (time.time() - loop_time) / pulses
+            module_logger.info("Rotated antenna {} degrees for {}s".format(degrees, duration))
+
+            loop_stop_time = time.time()
+            loop_average_time = (time.time() - loop_start_time) / pulses
 
             GPIO.output(self.ENA_min, GPIO.LOW)
 
             self._command_queue.task_done()
 
             # Tell caller a step is finished
-            self._response_queue.put((bearing_table, wait, loop_time))
+            self._response_queue.put((loop_start_time, loop_stop_time, wait, loop_average_time))
             self._response_queue.join()
-
-
-def antenna_test(args):
-    """
-    Test the antenna rotation
-
-    :param args: A list of string arguments
-    :type args: list[duration, degrees]
-    :return: Returns a dict if the test was successful, None otherwise
-    :rtype: bool
-    """
-    dur = 0
-    degrees = 0
-
-    try:
-        if len(args) >= 2:
-            dur = int(args[0])
-            degrees = int(args[1])
-        elif len(args) == 1:
-            dur = int(args[0])
-        else:
-            return None
-    except ValueError:
-        return None
-
-    _command_queue = queue.Queue()
-    _response_queue = queue.Queue()
-    _flag = threading.Event()
-    _thread = AntennaStepperThread(_command_queue, _response_queue, _flag)
-    _thread.start()
-
-    print("Starting antenna test for {}s, please wait...".format(dur))
-
-    _command_queue.put((dur, degrees, 0))
-    _flag.set()
-    _command_queue.join()
-
-    response = _response_queue.get()
-    _response_queue.task_done()
-    print("Antenna test complete")
-    print("\tExpected loop time:\t{:.15f}s".format(response[1]))
-    print("\tActual loop time:\t{:>.15f}s".format(response[2]))
-    print("\tActual loop time {:.2%} longer than expected".format((response[2]-response[1])/response[1]))
-    return response
-
 
 @atexit.register
 def cleanup():
@@ -154,22 +106,5 @@ def cleanup():
     Cleanup - ensure GPIO is cleaned up properly
     """
 
+    module_logger.info("Cleaning up GPIO")
     GPIO.cleanup()
-
-
-# Script can be run standalone to test the antenna
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Test the antenna by rotating it a number of degrees in a number of seconds")
-    parser.add_argument("duration",
-                        help="Number of seconds to rotate the antenna",
-                        type=int)
-    parser.add_argument("degrees",
-                        help="Number of degrees to rotate the antenna",
-                        type=int,
-                        nargs='?',
-                        default=360)
-    arguments = parser.parse_args()
-
-    response = antenna_test([str(arguments.duration), str(arguments.degrees)])
-    if response is None:
-        logging.getLogger('global').error("Antenna test failed")

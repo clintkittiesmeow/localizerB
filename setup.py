@@ -23,6 +23,8 @@ setup(
         'gpsd-py3',
         'numpy',
     ],
+    test_suite='nose.collector',
+    tests_require=['nose'],
     entry_points={
         'console_scripts': ['localizer=localizer.main:main'],
     },

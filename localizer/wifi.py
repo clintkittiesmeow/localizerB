@@ -1,10 +1,12 @@
-from subprocess import Popen, call, PIPE
+from subprocess import call, run, Popen, PIPE, CalledProcessError
 import atexit
 import threading
 import logging
 import time
 import shutil
 import localizer
+import queue
+import re
 
 # Global Constants
 IEEE80211bg = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
@@ -13,12 +15,17 @@ IEEE80211a = [36, 40, 44, 48, 52, 56, 60, 64, 149, 153, 157, 161]
 IEEE80211bga = IEEE80211bg + IEEE80211a
 IEEE80211bga_intl = IEEE80211bg_intl + IEEE80211a
 
+module_logger = logging.getLogger('localizer.wifi')
+
 # Make sure required system tools are installed
 if shutil.which("iwconfig") is None:
-    logging.getLogger('global').error("Required system tool 'iwconfig' is not installed")
+    module_logger.error("Required system tool 'iwconfig' is not installed")
     exit(1)
 if shutil.which("ifconfig") is None:
-    logging.getLogger('global').error("Required system tool 'ifconfig' is not installed")
+    module_logger.error("Required system tool 'ifconfig' is not installed")
+    exit(1)
+if shutil.which("iwlist") is None:
+    module_logger.error("Required system tool 'iwlist' is not installed")
     exit(1)
 
 
@@ -39,7 +46,7 @@ def set_interface_mode(iface, mode):
         if iface not in interfaces:
             raise ValueError("Interface {} is not a valid interface".format(iface))
 
-        logging.getLogger('global').info("Enabling {} mode on {}".format(mode, iface))
+        module_logger.info("Enabling {} mode on {}".format(mode, iface))
         call(['ifconfig', iface, 'down'], stdout=localizer.DN, stderr=localizer.DN)
         call(['iwconfig', iface, 'mode', mode], stdout=localizer.DN, stderr=localizer.DN)
         call(['ifconfig', iface, 'up'], stdout=localizer.DN, stderr=localizer.DN)
@@ -47,22 +54,31 @@ def set_interface_mode(iface, mode):
         # Validate mode of interface
         interfaces = get_interfaces()
         if interfaces[iface]["mode"] == mode:
-            logging.getLogger('global').info("Finished enabling {} mode on {}".format(mode, iface))
+            module_logger.info("Finished enabling {} mode on {}".format(mode, iface))
             return True
         else:
             raise ValueError("Failed putting interface {} into {} mode; interface currently in {} mode"
                              .format(iface, mode, interfaces[iface]["mode"]))
 
-    except (KeyError, ValueError) as e:
-        logging.getLogger('global').error(e)
+    except (KeyError, ValueError, CalledProcessError) as e:
+        module_logger.error(e)
         return False
 
 
 def get_interface_mode(iface):
+    """
+    Get the current mode of an interface
+
+    :param iface: Interface to query for mode
+    :type iface: str
+    :return: Mode of interface
+    :rtype: str
+    """
+
     try:
         return get_interfaces()[iface]["mode"]
     except KeyError:
-        logging.getLogger('global').error("No interface '{}'".format(iface))
+        module_logger.error("No interface '{}'".format(iface))
         return None
 
 
@@ -105,8 +121,63 @@ def get_interfaces():
         return interfaces
 
     except (ValueError, IndexError) as e:
-        logging.getLogger('global').error(e)
+        module_logger.error(e)
         return None
+
+
+def get_first_interface():
+    """
+    Returns the name of the first interface, or None if none are present on the system.
+
+    :return: First wlan interface
+    :rtype: str
+    """
+
+    ifaces = get_interfaces()
+    if ifaces is not None and len(list(ifaces)) > 0:
+        return list(ifaces)[0]
+    else:
+        return None
+
+
+def get_channel(iface):
+    """
+    Returns the channel the specified interface is on, or zero if it can't be determined
+
+    :param iface: Interface to query for channel
+    :type iface: str
+    :return: Channel
+    :rtype: int
+    """
+
+    proc = run(['iwlist', iface, 'channel'], stdout=PIPE, stderr=PIPE)
+
+    # Respond with actual
+    lines = proc.stdout
+    match = re.search('(?<=\(Channel\s)(\d{1,2})', lines.decode())
+    if match is not None:
+        return match.group()
+    else:
+        return 0
+
+
+def set_channel(iface, channel):
+    """
+    Sets the channel of the specified interface
+
+    :param iface: Interface to set the channel
+    :type iface: str
+    :param channel: Channel number to set the interface to
+    :type channel: int
+    :return: True for success, False for failure
+    :rtype: bool
+    """
+
+    try:
+        call(['iwconfig', iface, 'channel', str(channel)], stdout=localizer.DN, stderr=localizer.DN)
+        return True
+    except CalledProcessError:
+        return False
 
 
 class ChannelHopper(threading.Thread):
@@ -120,7 +191,7 @@ class ChannelHopper(threading.Thread):
 
         super().__init__()
 
-        logging.getLogger('global').info("Starting Channel Hopper Thread")
+        module_logger.info("Starting Channel Hopper Thread")
 
         self.daemon = True
         self._iface = iface
@@ -134,7 +205,7 @@ class ChannelHopper(threading.Thread):
         assert(get_interface_mode(self._iface) == "monitor")
 
         # Set channel to first channel
-        call(['iwconfig', self._iface, 'channel', str(self._channels[0])], stdout=localizer.DN, stderr=localizer.DN)
+        set_channel(iface, 1)
 
     def run(self):
         while True:
@@ -159,7 +230,7 @@ def cleanup():
     Cleanup - ensure all devices are no longer in monitor mode
     """
 
-    logging.getLogger('global').info("Cleaning up all monitored interfaces")
+    module_logger.info("Cleaning up all monitored interfaces")
     ifaces = get_interfaces()
 
     for iface in ifaces:
