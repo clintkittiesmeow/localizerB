@@ -8,6 +8,11 @@ import unittest
 
 class TestAntenna(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        # Speed up tests
+        localizer.params.duration = 5
+
     def test_1_params_valid(self):
         self.assertTrue(localizer.params.validate_antenna(), msg=("Invalid parameters:\n"+str(localizer.params)))
 

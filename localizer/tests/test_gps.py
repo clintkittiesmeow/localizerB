@@ -15,6 +15,9 @@ class TestGPS(unittest.TestCase):
         if localizer.params.path is None:
             localizer.params.path = '/tmp'
 
+        # Speed up tests
+        localizer.params.duration = 5
+
     def test_1_params_valid(self):
         self.assertTrue(localizer.params.validate_gps(), msg=("Invalid parameters:\n"+str(localizer.params)))
 

@@ -2,7 +2,9 @@ import unittest
 from unittest import TestCase
 from localizer.params import Params
 
+
 class TestParams(TestCase):
+
     def test_exceptions(self):
         params = Params()
         with self.assertRaises(ValueError):
