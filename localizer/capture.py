@@ -282,9 +282,9 @@ class CaptureThread(threading.Thread):
             proc = run(command, stdout=PIPE, stderr=PIPE)
 
             import re
-            num_match = re.search("(?<=dropped on interface\s'\S{15}':\s)\d+", proc.stderr.decode())
+            num_match = re.search("(?<=dropped on interface\s')(?:\S+':\s)(\d+)", proc.stderr.decode())
             if num_match is not None:
-                num_cap = int(num_match.group())
+                num_cap = int(num_match.groups()[0])
             else:
                 raise ValueError("Capture failed")
 
