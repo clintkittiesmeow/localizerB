@@ -12,7 +12,7 @@ queue_response = Queue()
 flag = Event()
 
 thread = AntennaStepperThread(queue_command, queue_response, flag)
-
+thread.start()
 
 for i in range(0, len(durations)):
     # Set up command
