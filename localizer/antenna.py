@@ -69,23 +69,27 @@ class AntennaStepperThread(threading.Thread):
             self._event_flag.wait()
 
             curr_loop = 0
-            wait_time = 0
+            remaining = 0
             loop_start_time = time.time()
 
             # Step through each step
             for step in range(0, pulses):
                 # Calculate remaining time for current loop
                 curr_loop = step*wait + loop_start_time
-                curr_time = now()
+
                 output(21, 1)
+
                 # Wait for half the remaining available time in the loop
-                sleep(wait_half-(curr_time-curr_loop))
+                remaining = (curr_loop-now())-wait_half
+                if remaining > 0:
+                    sleep(remaining)
+
                 output(21, 0)
 
                 # Wait remaining loop time, if any
-                wait_time = curr_loop + wait - now()
-                if wait_time > 0:
-                    sleep(wait_time)
+                remaining = curr_loop - now()
+                if remaining > 0:
+                    sleep(remaining)
 
             module_logger.info("Rotated antenna {} degrees for {}s".format(degrees, duration))
 
