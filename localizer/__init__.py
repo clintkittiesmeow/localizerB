@@ -1,42 +1,52 @@
 import os
 import logging
+import atexit
+from localizer.params import Params
+
 
 # Shared Variables
 debug = 0
-working_directory = None
-console_logger = None
+params = Params()
+
+
+# Console colors
+W = '\033[0m'  # white (normal)
+R = '\033[31m'  # red
+G = '\033[32m'  # green
+O = '\033[33m'  # orange
+B = '\033[34m'  # blue
+P = '\033[35m'  # purple
+C = '\033[36m'  # cyan
+GR = '\033[37m'  # gray
+
+
+# Set up logging
+logger = logging.getLogger('localizer')
+logger.setLevel(logging.DEBUG)
+_console_logger = logging.StreamHandler()
+_console_logger.setLevel(logging.ERROR)
+_console_logger.setFormatter(logging.Formatter('%(name)s - %(levelname)s: %(message)s'))
+logger.addHandler(_console_logger)
 
 
 def set_debug(value):
     global debug
     debug = value
-    if console_logger is not None:
+    if logger is not None:
         if debug:
-            console_logger.setLevel(logging.DEBUG)
+            _console_logger.setLevel(logging.DEBUG)
         else:
-            console_logger.setLevel(logging.ERROR)
+            _console_logger.setLevel(logging.ERROR)
 
-        logging.getLogger('global').info("Debug set to {}".format(value))
-
-
-def set_working_directory(path):
-    global working_directory
-    try:
-        tmpfile = os.path.join(path, 'tmpfile')
-        fp = open(tmpfile, 'w')
-        fp.write(" ")
-        fp.close()
-        os.remove(tmpfile)
-    except PermissionError:
-        logging.getLogger('global').error("Cannot write to working directory '{}'".format(working_directory))
-        return False
-    else:
-        logging.getLogger('global').info("Working directory '{}' successfully validated".format(working_directory))
-        working_directory = path
-        return True
+        logger.info("Debug set to {}".format(value))
 
 
 # /dev/null, send output from programs so they don't print to screen.
 DN = open(os.devnull, 'w')
 ERRLOG = open(os.devnull, 'w')
 OUTLOG = open(os.devnull, 'w')
+
+
+@atexit.register
+def cleanup():
+    logging.shutdown()
