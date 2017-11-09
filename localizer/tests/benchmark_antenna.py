@@ -16,8 +16,7 @@ thread.start()
 
 for i in range(0, len(durations)):
     # Set up command
-    command = (durations[1], degrees, bearing)
-    queue_command.put(command)
+    queue_command.put((durations[1], degrees, bearing))
 
     # Execute thread
     flag.set()

@@ -61,7 +61,12 @@ class LocalizerShell(ExitCmd, ShellCmd):
         # WiFi
         logger.info("Initializing WiFi")
         # Set interface to first
-        localizer.params.iface = wifi.get_first_interface()
+        iface = wifi.get_first_interface()
+        if iface is not None:
+            localizer.params.iface = iface
+        else:
+            logger.error("No valid wireless interface available")
+            exit(1)
 
         # Start the command loop - these need to be the last lines in the initializer
         self._update_prompt()
