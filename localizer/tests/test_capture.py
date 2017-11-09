@@ -1,4 +1,5 @@
 import localizer
+from localizer.wifi import get_first_interface
 from localizer.capture import CaptureThread
 from threading import Event
 import queue
@@ -12,7 +13,7 @@ class TestCapture(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         if localizer.params.iface is None:
-            localizer.params.iface = localizer.wifi.get_first_interface()
+            localizer.params.iface = get_first_interface()
         if localizer.params.path is None:
             localizer.params.path = '/tmp'
 
