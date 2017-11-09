@@ -137,16 +137,16 @@ class Capture:
             print("Capturing packets for {}/{}s\r".format(str(sec+1), str(self._duration)), end="")
             sys.stdout.flush()
 
-        print("\nProcessing actual...")
+        print("\nProcessing results...")
         sys.stdout.flush()
 
         # Get actual
         self._channel_command_queue.join()
 
         self._capture_command_queue.join()
-        while not self._capture_response_queue.empty():
-            print(self._capture_response_queue.get_nowait())
-            self._capture_response_queue.task_done()
+        _capture_results = self._capture_response_queue.get()
+        module_logger.info("Captured {} packets ({} dropped)".format(_capture_results[0], _capture_results[1]))
+        self._capture_response_queue.task_done()
 
         self._antenna_command_queue.join()
         _antenna_results = self._antenna_response_queue.get()
@@ -156,9 +156,10 @@ class Capture:
         _gps_results = self._gps_response_queue.get()
         self._gps_response_queue.task_done()
 
-        _packet_count = 0
+        _beacon_count = 0
+        _beacon_failures = 0
 
-        module_logger.info("Processing capture actual")
+        module_logger.info("Processing capture results")
         # Build CSV of beacons from pcap and antenna_results
         with open(self._csv_file,  'w', newline='') as csvfile:
 
@@ -184,6 +185,7 @@ class Capture:
                     plon_err = None
                     palt_err = None
                 except AttributeError:
+                    _beacon_failures += 1
                     continue
 
                 # Antenna correlation
@@ -232,9 +234,11 @@ class Capture:
                     fieldnames[9]: plon_err,
                     fieldnames[10]: palt_err, })
 
-                _packet_count += 1
+                _beacon_count += 1
 
-        print("Processed {} beacons, exported to csv file ({})".format(_packet_count, self._csv_file))
+        module_logger.info("Processed {} beacons".format(_beacon_count))
+        module_logger.info("Failed to process {} beacons".format(_beacon_failures))
+        print("Processed {} beacons, exported to csv file ({})".format(_beacon_count, self._csv_file))
         return
 
 
