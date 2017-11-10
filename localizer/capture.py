@@ -210,8 +210,8 @@ class Capture:
                     # Get time, bssid & db from packet
                     ptime = packet.sniff_time.timestamp()
                     pbssid = packet.wlan.bssid
-                    pssi = int(packet.wlan_radio.signal_dbm)
-                    pchannel = int(packet.wlan_radio.channel)
+                    pssi = int(packet.radiotap.dbm_antsignal)
+                    pchannel = int(packet.radiotap.channel.freq)
                 except AttributeError:
                     _beacon_failures += 1
                     continue
