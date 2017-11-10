@@ -211,7 +211,7 @@ class Capture:
                     ptime = packet.sniff_time.timestamp()
                     pbssid = packet.wlan.bssid
                     pssi = int(packet.radiotap.dbm_antsignal)
-                    pchannel = int(packet.radiotap.channel.freq)
+                    pchannel = int(packet.radiotap.channel_freq)
                 except AttributeError:
                     _beacon_failures += 1
                     continue
