@@ -1,4 +1,5 @@
 import os
+
 import localizer
 
 
@@ -68,9 +69,7 @@ class Params:
         try:
             if not isinstance(value, float):
                 value = float(value)
-            if value < 0 or value >= 360:
-                raise ValueError()
-            self._bearing = value
+            self._bearing = value % 360
         except ValueError:
             raise ValueError("Invalid bearing: {}; should be a float >= 0 and < 360")
 

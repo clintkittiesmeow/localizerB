@@ -1,7 +1,8 @@
-from localizer.shell import LocalizerShell
-import localizer
 import argparse
-import os
+import tempfile
+
+import localizer
+from localizer.shell import LocalizerShell
 
 
 # STARTUP
@@ -13,7 +14,7 @@ def main():
                         action="store_true")
     parser.add_argument("-w", "--workingdir",
                         help="Set the parent directory for session experiments. If blank, current directory is used.",
-                        default=os.getcwd())
+                        default=tempfile.gettempdir())
     args = parser.parse_args()
 
     localizer.set_debug(args.debug)

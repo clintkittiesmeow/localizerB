@@ -1,10 +1,11 @@
-import gpsd
-import threading
 import logging
-import shutil
-import time
 import os
+import shutil
+import threading
+import time
 from subprocess import Popen
+
+import gpsd
 
 module_logger = logging.getLogger('localizer.gps')
 
@@ -30,7 +31,7 @@ _gps_update_frequency = 1
 
 class GPSThread(threading.Thread):
 
-    def __init__(self, command_queue, response_queue, event_flag):
+    def __init__(self, response_queue, event_flag, duration, output):
         """
         GPS Thread that, when started and when the flag is raised, records the time and GPS location
         """
@@ -40,40 +41,39 @@ class GPSThread(threading.Thread):
         module_logger.info("Starting GPS Logging Thread")
 
         self.daemon = True
-        self._command_queue = command_queue
         self._response_queue = response_queue
         self._event_flag = event_flag
+        self._duration = duration
+        self._output = output
 
     def run(self):
         module_logger.info("Executing gps thread")
-        while True:
-            module_logger.info("Waiting for commands")
-            # Get command from command queue
-            duration, output = self._command_queue.get()
 
-            # Wait for synchronization signal
-            self._event_flag.wait()
+        gps_sentences = {}
 
-            gpspipe = Popen(['gpspipe', '-r', '-uu', '-o', output])
+        # Wait for synchronization signal
+        self._event_flag.wait()
 
-            gps_sentences = {}
+        _start_time = time.time()
+        gpspipe = Popen(['gpspipe', '-r', '-uu', '-o', self._output])
 
-            # Capture gps data for <duration> seconds
-            t = time.time() + duration
-            while time.time() < t:
-                gps_sentences[time.time()] = gpsd.get_current()
-                time.sleep(_gps_update_frequency)
+        # Capture gps data for <duration> seconds
+        t = time.time() + self._duration
+        while time.time() < t:
+            gps_sentences[time.time()] = gpsd.get_current()
+            time.sleep(_gps_update_frequency)
 
-            gpspipe.terminate()
+        module_logger.info("Terminating gpspipe")
+        gpspipe.terminate()
 
-            # Confirm capture file contains gps coordinates
-            if os.path.isfile(output):
-                module_logger.info("Successfully captured gps nmea data")
-            else:
-                module_logger.error("Could not capture gps nmea data")
+        _end_time = time.time()
+        module_logger.info("Captured gps data for {:.2f}s (expected {}s)".format(_end_time-_start_time, self._duration))
 
-            self._command_queue.task_done()
+        # Confirm capture file contains gps coordinates
+        if os.path.isfile(self._output):
+            module_logger.info("Successfully captured gps nmea data")
+        else:
+            module_logger.error("Could not capture gps nmea data")
 
-            # send gps data back
-            self._response_queue.put(gps_sentences)
-            self._response_queue.join()
+        # send gps data back
+        self._response_queue.put(gps_sentences)

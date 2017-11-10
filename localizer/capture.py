@@ -1,15 +1,17 @@
+import csv
 import logging
-import shutil
 import os
+import queue
+import shutil
 import threading
 import time
-import pyshark
-import csv
-import localizer
-import queue
-import sys
-import gpsd
 from subprocess import PIPE, run
+
+import gpsd
+import pyshark
+from tqdm import tqdm, trange
+
+import localizer
 
 module_logger = logging.getLogger('localizer.capture')
 
@@ -36,6 +38,7 @@ class Capture:
         self._duration = params.duration
         self._degrees = params.degrees
         self._bearing = params.bearing
+        self._hop_int = params.hop_int
 
         # Set up working folder
         os.umask(0)
@@ -58,47 +61,60 @@ class Capture:
         # Create capture file names
         self._capture_file_gps = os.path.join(self._capture_path, time.strftime('%Y%m%d-%H-%M-%S') + ".nmea")
         self._capture_file_pcap = os.path.join(self._capture_path, time.strftime('%Y%m%d-%H-%M-%S') + ".pcapng")
-        self._csv_file = os.path.join(self._capture_path, time.strftime('%Y%m%d-%H-%M-%S') + ".csv")
+        self._output_csv_res = os.path.join(self._capture_path, time.strftime('%Y%m%d-%H-%M-%S') + "-results" + ".csv")
+        self._output_csv_test = os.path.join(self._capture_path, time.strftime('%Y%m%d-%H-%M-%S') + "-test" + ".csv")
 
         # Threading sync flag
         self._flag = threading.Event()
 
         module_logger.info("Setting up capture threads")
 
-        # Set up gps thread
-        from localizer import gps
-        self._gps_command_queue = queue.Queue()
-        self._gps_response_queue = queue.Queue()
-        self._gps_thread = gps.GPSThread(self._gps_command_queue,
-                                         self._gps_response_queue,
-                                         self._flag)
-        self._gps_thread.start()
+        # Show progress bar of creating threads
+        with tqdm(total=4, desc="Setting up threads") as pbar:
 
-        # Set up antenna control thread
-        from localizer import antenna
-        self._antenna_command_queue = queue.Queue()
-        self._antenna_response_queue = queue.Queue()
-        self._antenna_thread = antenna.AntennaStepperThread(self._antenna_command_queue,
-                                                            self._antenna_response_queue,
-                                                            self._flag)
-        self._antenna_thread.start()
-
-        # Set up WiFi channel scanner thread
-        from localizer import wifi
-        self._channel_command_queue = queue.Queue()
-        self._channel_hopper_thread = wifi.ChannelHopper(self._channel_command_queue,
-                                                         self._flag,
-                                                         self._iface)
-        self._channel_hopper_thread.start()
-
-        # Set up pcap thread
-        self._capture_command_queue = queue.Queue()
-        self._capture_response_queue = queue.Queue()
-        self._capture_thread = CaptureThread(self._capture_command_queue,
-                                             self._capture_response_queue,
+            # Set up gps thread
+            from localizer import gps
+            self._gps_response_queue = queue.Queue()
+            self._gps_thread = gps.GPSThread(self._gps_response_queue,
                                              self._flag,
-                                             self._iface)
-        self._capture_thread.start()
+                                             self._duration,
+                                             self._capture_file_gps)
+            self._gps_thread.start()
+            pbar.update()
+            pbar.refresh()
+
+            # Set up antenna control thread
+            from localizer import antenna
+            self._antenna_response_queue = queue.Queue()
+            self._antenna_thread = antenna.AntennaStepperThread(self._antenna_response_queue,
+                                                                self._flag,
+                                                                self._duration,
+                                                                self._degrees,
+                                                                self._bearing)
+            self._antenna_thread.start()
+            pbar.update()
+            pbar.refresh()
+
+            # Set up pcap thread
+            self._capture_response_queue = queue.Queue()
+            self._capture_thread = CaptureThread(self._capture_response_queue,
+                                                 self._flag,
+                                                 self._iface,
+                                                 self._duration,
+                                                 self._capture_file_pcap)
+            self._capture_thread.start()
+            pbar.update()
+            pbar.refresh()
+
+            # Set up WiFi channel scanner thread
+            from localizer import wifi
+            self._channel_hopper_thread = wifi.ChannelHopper(self._flag,
+                                                             self._iface,
+                                                             self._duration,
+                                                             self._hop_int)
+            self._channel_hopper_thread.start()
+            pbar.update()
+            pbar.refresh()
 
     def capture(self):
         """
@@ -120,70 +136,80 @@ class Capture:
         else:
             print('\n')
 
-        module_logger.info("Sending commands to capture threads")
-        # Set up commands
-        self._gps_command_queue.put((self._duration, self._capture_file_gps))
-        self._antenna_command_queue.put((self._duration, self._degrees, self._bearing))
-        self._channel_command_queue.put((self._duration, .1))
-        self._capture_command_queue.put((self._duration, self._capture_file_pcap))
-
         module_logger.info("Triggering synchronized threads")
         # Start threads
         self._flag.set()
 
         # Print out timer to console
-        for sec in range(self._duration):
+        for sec in trange(self._duration, desc="Capturing packets for {}s".format((str(self._duration)))):
             time.sleep(1)
-            print("Capturing packets for {}/{}s\r".format(str(sec+1), str(self._duration)), end="")
-            sys.stdout.flush()
 
-        print("\nProcessing results...")
-        sys.stdout.flush()
+        # Show progress bar of threads joining
+        with tqdm(total=4, desc="Waiting for threads") as pbar:
 
-        # Get actual
-        self._channel_command_queue.join()
+            # Get results
+            pbar.update()
+            pbar.refresh()
+            self._channel_hopper_thread.join()
 
-        self._capture_command_queue.join()
-        _capture_results = self._capture_response_queue.get()
-        module_logger.info("Captured {} packets ({} dropped)".format(_capture_results[0], _capture_results[1]))
-        self._capture_response_queue.task_done()
+            pbar.update()
+            pbar.refresh()
+            loop_start_time, loop_stop_time, loop_expected_time, loop_average_time = self._antenna_response_queue.get()
+            localizer.params.bearing += localizer.params.degrees
+            self._antenna_thread.join()
 
-        self._antenna_command_queue.join()
-        _antenna_results = self._antenna_response_queue.get()
-        self._antenna_response_queue.task_done()
+            pbar.update()
+            pbar.refresh()
+            _gps_results = self._gps_response_queue.get()
+            self._gps_thread.join()
 
-        self._gps_command_queue.join()
-        _gps_results = self._gps_response_queue.get()
-        self._gps_response_queue.task_done()
+            pbar.update()
+            pbar.refresh()
+            _capture_result_cap, _capture_result_drop = self._capture_response_queue.get()
+            module_logger.info("Captured {} packets ({} dropped)".format(_capture_result_cap, _capture_result_drop))
+            self._capture_thread.join()
+
+        print("Processing results...")
+
+        # Write test metadata to disk
+        module_logger.info("Writing test metadata to csv")
+        with open(self._output_csv_test, 'w', newline='') as test_csv:
+            fieldnames = ['name', 'path', 'iface', 'duration', 'start', 'end', 'degrees', 'bearing']
+            test_csv_writer = csv.DictWriter(test_csv, dialect="unix", fieldnames=fieldnames)
+            test_csv_writer.writeheader()
+            test_csv_writer.writerow({fieldnames[0]: self._test,
+                                      fieldnames[1]: self._capture_path,
+                                      fieldnames[2]: self._iface,
+                                      fieldnames[3]: self._duration,
+                                      fieldnames[4]: loop_start_time,
+                                      fieldnames[5]: loop_stop_time,
+                                      fieldnames[6]: self._degrees,
+                                      fieldnames[7]: self._bearing})
 
         _beacon_count = 0
         _beacon_failures = 0
 
         module_logger.info("Processing capture results")
         # Build CSV of beacons from pcap and antenna_results
-        with open(self._csv_file,  'w', newline='') as csvfile:
+        with open(self._output_csv_res, 'w', newline='') as results_csv:
 
             # Read pcapng into memory
-            cap = pyshark.FileCapture(self._capture_file_pcap, display_filter='wlan[0] == 0x80')
+            print("Initializing tshark")
+            packets = pyshark.FileCapture(self._capture_file_pcap, display_filter='wlan[0] == 0x80')
+            packets.load_packets()
             fieldnames = ['timestamp', 'bssid', 'ssi', 'channel', 'bearing',
                           'lat', 'lon', 'alt', 'lat_err', 'lon_error', 'alt_error']
-            pacwriter = csv.DictWriter(csvfile, dialect="unix", fieldnames=fieldnames)
-            pacwriter.writeheader()
+            results_csv_writer = csv.DictWriter(results_csv, dialect="unix", fieldnames=fieldnames)
+            results_csv_writer.writeheader()
 
-            for packet in cap:
+            for packet in tqdm(packets):
+
                 try:
                     # Get time, bssid & db from packet
-                    ptime = float(packet.frame_info.time_epoch.main_field.show)
-                    pbssid = packet.wlan.bssid.main_field.show
-                    pssi = int(packet.wlan_radio.signal_dbm.main_field.show)
-                    pchannel = int(packet.wlan_radio.channel.main_field.show)
-                    pbearing = None
-                    plat = None
-                    plon = None
-                    palt = None
-                    plat_err = None
-                    plon_err = None
-                    palt_err = None
+                    ptime = packet.sniff_time.timestamp()
+                    pbssid = packet.wlan.bssid
+                    pssi = int(packet.wlan_radio.signal_dbm)
+                    pchannel = int(packet.wlan_radio.channel)
                 except AttributeError:
                     _beacon_failures += 1
                     continue
@@ -192,7 +218,6 @@ class Capture:
                 # Compute the timespan for the rotation, and use the relative packet time to determine
                 # where in the rotation the packet was captured
                 # This is necessary to have a smooth antenna rotation with microstepping
-                loop_start_time, loop_stop_time, loop_expected_time, loop_average_time = _antenna_results
                 total_time = loop_stop_time - loop_start_time
                 pdiff = ptime - loop_start_time
                 if pdiff <= 0:
@@ -201,9 +226,13 @@ class Capture:
                 pprogress = pdiff / total_time
                 pbearing = pprogress * self._degrees + self._bearing
 
-                assert pbearing is not None
-
                 # GPS correlation
+                plat = None
+                plon = None
+                palt = None
+                plat_err = None
+                plon_err = None
+                palt_err = None
                 for tstamp, message in sorted(_gps_results.items(), reverse=True):
                     if ptime >= tstamp:
                         plat = message.lat
@@ -217,11 +246,7 @@ class Capture:
                             palt_err = message.error['v']
                         break
 
-                assert plat is not None
-                assert plon is not None
-                assert palt is not None
-
-                pacwriter.writerow({
+                results_csv_writer.writerow({
                     fieldnames[0]: ptime,
                     fieldnames[1]: pbssid,
                     fieldnames[2]: pssi,
@@ -238,23 +263,23 @@ class Capture:
 
         module_logger.info("Processed {} beacons".format(_beacon_count))
         module_logger.info("Failed to process {} beacons".format(_beacon_failures))
-        print("Processed {} beacons, exported to csv file ({})".format(_beacon_count, self._csv_file))
-        return
+        print("Processed {} beacons, exported to csv file ({})".format(_beacon_count, self._output_csv_res))
 
 
 class CaptureThread(threading.Thread):
 
-    def __init__(self, command_queue, response_queue, event_flag, iface):
+    def __init__(self, response_queue, event_flag, iface, duration, output):
 
         super().__init__()
 
         module_logger.info("Starting Packet Capture Thread")
 
         self.daemon = True
-        self._command_queue = command_queue
         self._response_queue = response_queue
         self._event_flag = event_flag
         self._iface = iface
+        self._duration = duration
+        self._output = output
 
         # Check for required system packages
         self._packet_cap_util = "dumpcap"
@@ -273,27 +298,24 @@ class CaptureThread(threading.Thread):
 
     def run(self):
         module_logger.info("Executing capture thread")
-        while True:
-            module_logger.info("Waiting for commands")
-            # Get command from queue
-            duration, output = self._command_queue.get()
-            command = [self._packet_cap_util] + self._pcap_params + ["-a", "duration:{}".format(duration), "-w", output]
 
-            # Wait for synchronization signal
-            self._event_flag.wait()
+        command = [self._packet_cap_util] + self._pcap_params + ["-a", "duration:{}".format(self._duration), "-w", self._output]
 
-            proc = run(command, stdout=PIPE, stderr=PIPE)
+        # Wait for synchronization signal
+        self._event_flag.wait()
 
-            import re
-            matches = re.search("(?<=dropped on interface\s')(?:\S+':\s)(\d+)/(\d+)", proc.stderr.decode())
-            if matches is not None and len(matches.groups()) == 2:
-                num_cap = int(matches.groups()[0])
-                num_drop = int(matches.groups()[1])
-            else:
-                raise ValueError("Capture failed")
+        _start_time = time.time()
+        proc = run(command, stdout=PIPE, stderr=PIPE)
+        _end_time = time.time()
+        module_logger.info("Captured packets for {:.2f}s (expected {}s)".format(_end_time-_start_time, self._duration))
 
-            # Respond with actual
-            self._response_queue.put((num_cap, num_drop))
+        import re
+        matches = re.search("(?<=dropped on interface\s')(?:\S+':\s)(\d+)/(\d+)", proc.stderr.decode())
+        if matches is not None and len(matches.groups()) == 2:
+            num_cap = int(matches.groups()[0])
+            num_drop = int(matches.groups()[1])
+        else:
+            raise ValueError("Capture failed")
 
-            self._command_queue.task_done()
-            self._response_queue.join()
+        # Respond with actual
+        self._response_queue.put((num_cap, num_drop))

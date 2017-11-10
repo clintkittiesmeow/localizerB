@@ -1,5 +1,6 @@
 import unittest
 from unittest import TestCase
+
 from localizer.params import Params
 
 
@@ -23,6 +24,14 @@ class TestParams(TestCase):
             params.path = None
         with self.assertRaises(ValueError):
             params.path = 123456
+
+        params.bearing = -1000
+        self.assertGreaterEqual(params.bearing, 0)
+        self.assertLess(params.bearing, 360)
+
+        params.bearing = 495
+        self.assertGreaterEqual(params.bearing, 0)
+        self.assertLess(params.bearing, 360)
 
 
 if __name__ == '__main__':

@@ -1,11 +1,15 @@
-import localizer
-from localizer import gps
-from threading import Event
+import os
 import queue
+import tempfile
 import time
 import unittest
-import os
+from threading import Event
+
 import gpsd
+from tqdm import trange
+
+import localizer
+from localizer import gps
 
 
 class TestGPS(unittest.TestCase):
@@ -13,7 +17,7 @@ class TestGPS(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         if localizer.params.path is None:
-            localizer.params.path = '/tmp'
+            localizer.params.path = tempfile.gettempdir()
 
         # Speed up tests
         localizer.params.duration = 5
@@ -29,28 +33,20 @@ class TestGPS(unittest.TestCase):
             self.fail("Failed to connect to gpsd and gps device")
 
     def test_3_gps_capture(self):
-        _command_queue = queue.Queue()
         _response_queue = queue.Queue()
         _flag = Event()
-        _thread = gps.GPSThread(_command_queue, _response_queue, _flag)
-        _thread.start()
         _tmp_path = os.path.join(localizer.params.path, 'tmp.nmea')
-
-        _command_queue.put((localizer.params.duration, _tmp_path))
+        _thread = gps.GPSThread(_response_queue, _flag, localizer.params.duration, _tmp_path)
+        _thread.start()
         _flag.set()
 
         # Display timer
-        print()
-        for t in range(1, localizer.params.duration):
-            # Display timer
-            print("Time elapsed: {:>2}s/{}s\r".format(t, localizer.params.duration), end='')
+        for sec in trange(localizer.params.duration, desc="Executing test for {}s"
+                .format((str(localizer.params.duration)))):
             time.sleep(1)
-        print()
-
-        _command_queue.join()
 
         gps_sentences = _response_queue.get()
-        _response_queue.task_done()
+
         self.assertGreater(len(gps_sentences), 0, msg="Failed to capture NMEA data from gpsd")
 
         self.assertTrue(os.path.isfile(_tmp_path), msg="Failed to create packet capture")
@@ -58,6 +54,7 @@ class TestGPS(unittest.TestCase):
         os.remove(_tmp_path)
         self.assertFalse(os.path.isfile(_tmp_path), msg="Failed to remove packet capture")
 
+        _thread.join()
 
 # Script can be run standalone to test the antenna
 if __name__ == "__main__":
@@ -72,7 +69,7 @@ if __name__ == "__main__":
     parser.add_argument("path",
                         help="Temporary path to write test output",
                         nargs='?',
-                        default='/tmp')
+                        default=tempfile.gettempdir())
     arguments = parser.parse_args()
 
     try:
