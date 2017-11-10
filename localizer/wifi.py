@@ -1,12 +1,14 @@
-from subprocess import call, run, Popen, PIPE, CalledProcessError
 import atexit
-import threading
 import logging
-import time
-import shutil
-import localizer
-import queue
 import re
+import shutil
+import threading
+import time
+from subprocess import call, run, Popen, PIPE, CalledProcessError
+
+from tqdm import tqdm
+
+import localizer
 
 # Global Constants
 IEEE80211bg = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
@@ -181,7 +183,7 @@ def set_channel(iface, channel):
 
 
 class ChannelHopper(threading.Thread):
-    def __init__(self, command_queue, event_flag, iface, channels=IEEE80211bg):
+    def __init__(self, event_flag, iface, duration, interval, channels=IEEE80211bg):
         """
         Wait for commands on the queue and asynchronously change channels of wireless interface with specified timing.
 
@@ -195,8 +197,9 @@ class ChannelHopper(threading.Thread):
 
         self.daemon = True
         self._iface = iface
-        self._command_queue = command_queue
         self._event_flag = event_flag
+        self._duration = duration
+        self._interval = interval
         self._channels = channels
 
         # Ensure we are in monitor mode
@@ -208,20 +211,21 @@ class ChannelHopper(threading.Thread):
         set_channel(iface, 1)
 
     def run(self):
-        while True:
-            duration, interval = self._command_queue.get()
-            len_of_channels = len(self._channels)
 
-            # Wait for synchronization signal
-            self._event_flag.wait()
+        len_of_channels = len(self._channels)
 
-            # HOP CHANNELS https://github.com/elBradford/snippets/blob/master/chanhop.sh
-            for i in range(round(duration/interval)):
-                call(['iwconfig', self._iface, 'channel',
-                      str(self._channels[i % len_of_channels])], stdout=localizer.DN, stderr=localizer.DN)
-                time.sleep(interval)
+        # Wait for synchronization signal
+        self._event_flag.wait()
 
-            self._command_queue.task_done()
+        # HOP CHANNELS https://github.com/elBradford/snippets/blob/master/chanhop.sh
+        _start_time = time.time()
+        for i in range(round(self._duration/self._interval)):
+            call(['iwconfig', self._iface, 'channel',
+                  str(self._channels[i % len_of_channels])], stdout=localizer.DN, stderr=localizer.DN)
+            time.sleep(self._interval)
+
+        _end_time = time.time()
+        module_logger.info("Hopped channels for {:.2f}s (expected {}s)".format(_end_time-_start_time, self._duration))
 
 
 @atexit.register
@@ -233,6 +237,6 @@ def cleanup():
     module_logger.info("Cleaning up all monitored interfaces")
     ifaces = get_interfaces()
 
-    for iface in ifaces:
+    for iface in tqdm(ifaces, desc="Restoring ifaces to managed mode"):
         if ifaces[iface]["mode"] == "monitor":
             set_interface_mode(iface, "managed")

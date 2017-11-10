@@ -1,9 +1,13 @@
-import localizer
-from localizer import wifi
-from threading import Event
 import queue
+import tempfile
 import time
 import unittest
+from threading import Event
+
+from tqdm import tqdm
+
+import localizer
+from localizer import wifi
 
 
 class TestWifi(unittest.TestCase):
@@ -13,7 +17,7 @@ class TestWifi(unittest.TestCase):
         if localizer.params.iface is None:
             localizer.params.iface = wifi.get_first_interface()
         if localizer.params.path is None:
-            localizer.params.path = '/tmp'
+            localizer.params.path = tempfile.gettempdir()
 
         # Speed up tests
         localizer.params.duration = 5
@@ -38,29 +42,26 @@ class TestWifi(unittest.TestCase):
     def test_3_channel_hop(self):
         _command_queue = queue.Queue()
         _flag = Event()
-        _thread = wifi.ChannelHopper(_command_queue, _flag, localizer.params.iface)
+        _thread = wifi.ChannelHopper(_flag, localizer.params.iface, localizer.params.duration, localizer.params.hop_int)
         _thread.start()
-
-        _command_queue.put((localizer.params.duration, localizer.params.hop_int))
         _flag.set()
 
         _original_channel = wifi.get_channel(localizer.params.iface)
         _channel_changed = False
         # Check channel changes at least once during duration:
-        print()
-        for t in range(1, localizer.params.duration):
-            _current_channel = wifi.get_channel(localizer.params.iface)
-            if _current_channel != _original_channel and not _channel_changed:
-                _channel_changed = True
 
-            # Display timer
-            print("Time elapsed: {:>2}s/{}s\r".format(t, localizer.params.duration), end='')
-            time.sleep(1)
-        print()
-
-        _command_queue.join()
+        # Display timer
+        with tqdm(range(localizer.params.duration)) as pbar:
+            for sec in pbar:
+                _current_channel = wifi.get_channel(localizer.params.iface)
+                if _current_channel != _original_channel and not _channel_changed:
+                    _channel_changed = True
+                pbar.set_description("Current channel:{:>3}".format(_current_channel))
+                time.sleep(1)
 
         self.assertTrue(_channel_changed)
+
+        _thread.join()
 
 
 # Script can be run standalone to test the antenna

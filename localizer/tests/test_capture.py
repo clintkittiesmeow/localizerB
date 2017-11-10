@@ -1,11 +1,15 @@
-import localizer
-from localizer.wifi import get_first_interface
-from localizer.capture import CaptureThread
-from threading import Event
+import os
 import queue
+import tempfile
 import time
 import unittest
-import os
+from threading import Event
+
+from tqdm import trange
+
+import localizer
+from localizer.capture import CaptureThread
+from localizer.wifi import get_first_interface
 
 
 class TestCapture(unittest.TestCase):
@@ -15,7 +19,7 @@ class TestCapture(unittest.TestCase):
         if localizer.params.iface is None:
             localizer.params.iface = get_first_interface()
         if localizer.params.path is None:
-            localizer.params.path = '/tmp'
+            localizer.params.path = tempfile.gettempdir()
 
         # Speed up tests
         localizer.params.duration = 5
@@ -24,27 +28,23 @@ class TestCapture(unittest.TestCase):
         self.assertTrue(localizer.params.validate_capture(), msg=("Invalid parameters:\n"+str(localizer.params)))
 
     def test_2_packet_capture(self):
-        _command_queue = queue.Queue()
         _response_queue = queue.Queue()
         _flag = Event()
-        _thread = CaptureThread(_command_queue, _response_queue, _flag, localizer.params.iface)
-        _thread.start()
         _tmp_path = os.path.join(localizer.params.path, 'tmp.pcapng')
-
-        _command_queue.put((localizer.params.duration, _tmp_path))
+        _thread = CaptureThread(_response_queue,
+                                _flag,
+                                localizer.params.iface,
+                                localizer.params.duration,
+                                _tmp_path)
+        _thread.start()
         _flag.set()
 
         # Display timer
-        print()
-        for t in range(1, localizer.params.duration):
-            # Display timer
-            print("Time elapsed: {:>2}s/{}s\r".format(t, localizer.params.duration), end='')
+        for sec in trange(localizer.params.duration, desc="Executing test for {}s"
+                .format((str(localizer.params.duration)))):
             time.sleep(1)
-        print()
 
-        _command_queue.join()
         num_rcv, num_drop = _response_queue.get()
-        _response_queue.task_done()
 
         print("Received {} packets (dropped {} packets)".format(num_rcv, num_drop))
         self.assertGreater(num_rcv, 0, "Failed to capture any packets")
@@ -54,6 +54,8 @@ class TestCapture(unittest.TestCase):
         # Cleanup file
         os.remove(_tmp_path)
         self.assertFalse(os.path.isfile(_tmp_path), msg="Failed to remove packet capture")
+
+        _thread.join()
 
 
 # Script can be run standalone
@@ -74,7 +76,7 @@ if __name__ == "__main__":
     parser.add_argument("path",
                         help="Temporary path to write test output",
                         nargs='?',
-                        default='/tmp')
+                        default=tempfile.gettempdir())
     arguments = parser.parse_args()
 
     try:

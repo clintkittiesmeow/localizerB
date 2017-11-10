@@ -1,5 +1,6 @@
-from setuptools import setup
 import sys
+
+from setuptools import setup
 
 if sys.version_info < (3,5):
     sys.exit('Sorry, Python < 3.5 is not supported')
@@ -21,7 +22,7 @@ setup(
         'RPi.GPIO',
         'pyshark',
         'gpsd-py3',
-        'numpy',
+        'tqdm',
     ],
     test_suite='nose.collector',
     tests_require=['nose'],

@@ -1,11 +1,11 @@
-from cmd import Cmd
-from localizer import wifi, capture, params
-
-from distutils.util import strtobool
-import localizer
 import logging
 import os
 import pprint
+from cmd import Cmd
+from distutils.util import strtobool
+
+import localizer
+from localizer import wifi, capture, params, antenna
 
 logger = logging.getLogger('localizer')
 _file_logger = logging.FileHandler('localizer.log')
@@ -177,6 +177,8 @@ class LocalizerShell(ExitCmd, ShellCmd):
         else:
             cap = capture.Capture()
             cap.capture()
+            logger.info("Resetting antenna {} degrees".format(localizer.params.degrees))
+            localizer.params.bearing -= antenna.reset(localizer.params.degrees * -1)
 
     def _update_prompt(self):
         """
