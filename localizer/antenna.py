@@ -102,9 +102,6 @@ class AntennaStepperThread(threading.Thread):
         # Put results on queue
         self._response_queue.put((loop_start_time, loop_stop_time, wait, loop_average_time))
 
-        module_logger.info("Resetting antenna {} degrees".format(localizer.params.degrees))
-        localizer.params.bearing -= reset(localizer.params.degrees * -1)
-
 
 def reset(degrees):
     """
@@ -136,7 +133,6 @@ def reset(degrees):
             .format((str(localizer.params.duration)))):
         time.sleep(sec)
 
-    _thread.join()
     return degrees
 
 

@@ -12,6 +12,7 @@ import pyshark
 from tqdm import tqdm, trange
 
 import localizer
+from localizer import antenna, wifi, gps
 
 module_logger = logging.getLogger('localizer.capture')
 
@@ -73,7 +74,6 @@ class Capture:
         with tqdm(total=4, desc="Setting up threads") as pbar:
 
             # Set up gps thread
-            from localizer import gps
             self._gps_response_queue = queue.Queue()
             self._gps_thread = gps.GPSThread(self._gps_response_queue,
                                              self._flag,
@@ -84,7 +84,6 @@ class Capture:
             pbar.refresh()
 
             # Set up antenna control thread
-            from localizer import antenna
             self._antenna_response_queue = queue.Queue()
             self._antenna_thread = antenna.AntennaStepperThread(self._antenna_response_queue,
                                                                 self._flag,
@@ -107,7 +106,6 @@ class Capture:
             pbar.refresh()
 
             # Set up WiFi channel scanner thread
-            from localizer import wifi
             self._channel_hopper_thread = wifi.ChannelHopper(self._flag,
                                                              self._iface,
                                                              self._duration,
@@ -168,6 +166,10 @@ class Capture:
             _capture_result_cap, _capture_result_drop = self._capture_response_queue.get()
             module_logger.info("Captured {} packets ({} dropped)".format(_capture_result_cap, _capture_result_drop))
             self._capture_thread.join()
+
+        # Spawn antenna reset thread, don't wait to join
+        module_logger.info("Resetting antenna {} degrees".format(localizer.params.degrees))
+        localizer.params.bearing -= antenna.reset(localizer.params.degrees * -1)
 
         print("Processing results...")
 
