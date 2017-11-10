@@ -10,6 +10,14 @@ from tqdm import trange
 
 import localizer
 
+# Set up GPIO
+PUL_min = 21
+DIR_min = 20
+ENA_min = 16
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(PUL_min, GPIO.OUT, initial=GPIO.LOW)
+GPIO.setup(DIR_min, GPIO.OUT)
+GPIO.setup(ENA_min, GPIO.OUT)
 GPIO.setwarnings(False)
 
 module_logger = logging.getLogger('localizer.antenna')
@@ -36,15 +44,7 @@ class AntennaStepperThread(threading.Thread):
         self._bearing = bearing
         self._seq_position = 0
 
-        self.PUL_min = 21
-        self.DIR_min = 20
-        self.ENA_min = 16
 
-        # Set up GPIO
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.PUL_min, GPIO.OUT, initial=GPIO.LOW)
-        GPIO.setup(self.DIR_min, GPIO.OUT)
-        GPIO.setup(self.ENA_min, GPIO.OUT)
 
     def run(self):
         # Wait for commands in the queue
@@ -73,8 +73,6 @@ class AntennaStepperThread(threading.Thread):
         module_logger.info("Waiting for synchronization flag")
         self._event_flag.wait()
 
-        curr_loop = 0
-        remaining = 0
         loop_start_time = time.time()
 
         # Step through each step
@@ -102,10 +100,11 @@ class AntennaStepperThread(threading.Thread):
         module_logger.info("Rotated antenna {} degrees for {:.2f}s (expected {}s)"
                            .format(self._degrees, loop_stop_time-loop_start_time, self._duration))
 
-        GPIO.output(self.ENA_min, GPIO.LOW)
-
         # Put results on queue
         self._response_queue.put((loop_start_time, loop_stop_time, wait, loop_average_time))
+
+        module_logger.info("Resetting antenna {} degrees".format(localizer.params.degrees))
+        localizer.params.bearing -= reset(localizer.params.degrees * -1)
 
 
 def reset(degrees):
