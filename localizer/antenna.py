@@ -18,6 +18,7 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(PUL_min, GPIO.OUT, initial=GPIO.LOW)
 GPIO.setup(DIR_min, GPIO.OUT)
 GPIO.setup(ENA_min, GPIO.OUT)
+GPIO.output(ENA_min, GPIO.HIGH)
 GPIO.setwarnings(False)
 
 module_logger = logging.getLogger('localizer.antenna')
@@ -56,13 +57,11 @@ class AntennaStepperThread(threading.Thread):
         wait_half = wait/2
 
         if pulses < 0:
-            GPIO.output(self.DIR_min, GPIO.LOW)
+            GPIO.output(DIR_min, GPIO.LOW)
             pulses = -pulses
         else:
-            GPIO.output(self.DIR_min, GPIO.HIGH)
+            GPIO.output(DIR_min, GPIO.HIGH)
             pass
-
-        GPIO.output(self.ENA_min, GPIO.HIGH)
 
         # Optimization https://wiki.python.org/moin/PythonSpeed/PerformanceTips
         now = time.time
