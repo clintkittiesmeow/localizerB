@@ -95,12 +95,19 @@ class Params:
     @path.setter
     def path(self, value):
         try:
+            # Try to write and remove a tempfile to the directory
             tmpfile = os.path.join(value, 'tmpfile')
-
             with open(tmpfile, 'w') as fp:
                 fp.write(" ")
-
             os.remove(tmpfile)
+
+            # cd into directory
+            os.chdir(value)
+
+            # restart httpd if it's running
+            if localizer.serve and self._path != value:
+                localizer.restart_httpd()
+
             self._path = value
         except (PermissionError, FileNotFoundError, TypeError):
             raise ValueError("Cannot write to working directory '{}'".format(value))
@@ -111,7 +118,7 @@ class Params:
 
     @test.setter
     def test(self, value):
-        self.test = value
+        self._test = str(value)
 
     # Validation functions
     def validate_antenna(self):
@@ -139,6 +146,8 @@ class Params:
     def __str__(self):
         retstr = "\n{} \tParameters: {}\n".format(localizer.G, localizer.W)
         for param, val in sorted(self.__dict__.items()):
+
+            # Highlight 'None' values as red, except for 'test' which is optional
             signifier = ''
             if param is not '_test' and val is None:
                 signifier = localizer.R

@@ -90,6 +90,26 @@ class LocalizerShell(ExitCmd, ShellCmd):
 
         print("Debug is '{}'".format(localizer.debug))
 
+    def do_serve(self, args):
+        """
+        Sets serving of the working directory over http:80, or shows current setting if no param given
+
+        :param args: (Optional) Set new serve value.
+        :type args: str
+        """
+
+        args = args.split()
+        if len(args) > 0:
+            try:
+                val = strtobool(args[0])
+                localizer.set_serve(val)
+            except ValueError:
+                logger.error("Could not understand serve value '{}'".format(args[0]))
+
+        print("Serve is '{}'".format(localizer.serve))
+        if localizer.serve:
+            print("HTTP serving working dir {} on port :{}".format(localizer.params.path, localizer.PORT))
+
     def complete_test(self, text, line, begidx, endidx):
         return [i for i in self._modules if i.startswith(text)]
 

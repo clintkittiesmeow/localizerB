@@ -12,6 +12,9 @@ def main():
     parser.add_argument("-d", "--debug",
                         help="Make debug output print to the console. This flag may also be set in the shell",
                         action="store_true")
+    parser.add_argument("-s", "--server",
+                        help="Start a http server in the working directory to host test output",
+                        action="store_true")
     parser.add_argument("-w", "--workingdir",
                         help="Set the parent directory for session experiments. If blank, current directory is used.",
                         default=tempfile.gettempdir())
