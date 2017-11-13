@@ -5,7 +5,7 @@ import queue
 import shutil
 import threading
 import time
-from subprocess import PIPE, run
+from subprocess import PIPE, Popen
 
 import gpsd
 import pyshark
@@ -66,7 +66,8 @@ class Capture:
         self._output_csv_test = os.path.join(self._capture_path, time.strftime('%Y%m%d-%H-%M-%S') + "-test" + ".csv")
 
         # Threading sync flag
-        self._flag = threading.Event()
+        self._initialize_flag = threading.Event()
+        self._start_flag = threading.Event()
 
         module_logger.info("Setting up capture threads")
 
@@ -76,7 +77,7 @@ class Capture:
             # Set up gps thread
             self._gps_response_queue = queue.Queue()
             self._gps_thread = gps.GPSThread(self._gps_response_queue,
-                                             self._flag,
+                                             self._start_flag,
                                              self._duration,
                                              self._capture_file_gps)
             self._gps_thread.start()
@@ -86,7 +87,7 @@ class Capture:
             # Set up antenna control thread
             self._antenna_response_queue = queue.Queue()
             self._antenna_thread = antenna.AntennaStepperThread(self._antenna_response_queue,
-                                                                self._flag,
+                                                                self._start_flag,
                                                                 self._duration,
                                                                 self._degrees,
                                                                 self._bearing)
@@ -97,7 +98,8 @@ class Capture:
             # Set up pcap thread
             self._capture_response_queue = queue.Queue()
             self._capture_thread = CaptureThread(self._capture_response_queue,
-                                                 self._flag,
+                                                 self._initialize_flag,
+                                                 self._start_flag,
                                                  self._iface,
                                                  self._duration,
                                                  self._capture_file_pcap)
@@ -106,7 +108,7 @@ class Capture:
             pbar.refresh()
 
             # Set up WiFi channel scanner thread
-            self._channel_hopper_thread = wifi.ChannelHopper(self._flag,
+            self._channel_hopper_thread = wifi.ChannelHopper(self._start_flag,
                                                              self._iface,
                                                              self._duration,
                                                              self._hop_int)
@@ -136,7 +138,7 @@ class Capture:
 
         module_logger.info("Triggering synchronized threads")
         # Start threads
-        self._flag.set()
+        self._initialize_flag.set()
 
         # Print out timer to console
         for sec in trange(self._duration, desc="Capturing packets for {}s".format((str(self._duration)))):
@@ -270,7 +272,7 @@ class Capture:
 
 class CaptureThread(threading.Thread):
 
-    def __init__(self, response_queue, event_flag, iface, duration, output):
+    def __init__(self, response_queue, initialize_flag, start_flag, iface, duration, output):
 
         super().__init__()
 
@@ -278,7 +280,8 @@ class CaptureThread(threading.Thread):
 
         self.daemon = True
         self._response_queue = response_queue
-        self._event_flag = event_flag
+        self._initialize_flag = initialize_flag
+        self._start_flag = start_flag
         self._iface = iface
         self._duration = duration
         self._output = output
@@ -304,10 +307,23 @@ class CaptureThread(threading.Thread):
         command = [self._packet_cap_util] + self._pcap_params + ["-a", "duration:{}".format(self._duration), "-w", self._output]
 
         # Wait for synchronization signal
-        self._event_flag.wait()
+        self._initialize_flag.wait()
 
         _start_time = time.time()
-        proc = run(command, stdout=PIPE, stderr=PIPE)
+        proc = Popen(command, stdout=PIPE, stderr=PIPE)
+
+        # Wait for process to output "File: ..." to stderr and then set flag for other threads
+        _timeout_start = time.time()
+        curr_line = ""
+        while not curr_line.startswith("File:"):
+            curr_line = proc.stderr.readline()
+            if time.time() > _timeout_start + 5:
+                raise TimeoutError("Capture process did not start as expected: {}/{}".format(curr_line, command))
+            else:
+                time.sleep(.1)
+        self._start_flag.set()
+
+        proc.wait()
         _end_time = time.time()
         module_logger.info("Captured packets for {:.2f}s (expected {}s)".format(_end_time-_start_time, self._duration))
 
