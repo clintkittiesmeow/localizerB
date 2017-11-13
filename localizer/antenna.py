@@ -70,7 +70,7 @@ class AntennaStepperThread(threading.Thread):
             module_logger.info("Resetting antenna position")
             _reset_rate = 3
             _duration = _reset_rate * (self._degrees / 360)
-            self.rotate(self._degrees, _duration)
+            self.rotate(self._degrees*-1, _duration)
 
     @staticmethod
     def rotate(degrees, duration):

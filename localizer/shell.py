@@ -183,6 +183,8 @@ class LocalizerShell(ExitCmd, ShellCmd):
         else:
             pprint.pprint(wifi.get_interfaces())
             print(str(localizer.params))
+            print("Debug is {}".format(localizer.debug))
+            print("HTTP server is {}".format(localizer.serve))
 
     def do_capture(self, args):
         """
