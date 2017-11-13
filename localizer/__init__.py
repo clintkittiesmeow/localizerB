@@ -71,6 +71,7 @@ def start_httpd():
 
     logger.info("Starting http server in {}".format(params.path))
     httpd = socketserver.TCPServer(("", PORT), QuietSimpleHTTPRequestHandler)
+    httpd.allow_reuse_address = True
     httpd_thread = Thread(target=httpd.serve_forever)
     httpd_thread.daemon = True
     httpd_thread.start()
