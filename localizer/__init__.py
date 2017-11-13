@@ -1,11 +1,14 @@
-import os
-import logging
 import atexit
+import http.server
+import logging
+import os
+import socketserver
+
 from localizer.params import Params
 
-
 # Shared Variables
-debug = 0
+debug = False
+serve = False
 params = Params()
 
 
@@ -27,6 +30,40 @@ _console_logger = logging.StreamHandler()
 _console_logger.setLevel(logging.ERROR)
 _console_logger.setFormatter(logging.Formatter('%(name)s - %(levelname)s: %(message)s'))
 logger.addHandler(_console_logger)
+
+# Set up web server
+
+PORT = 80
+httpd = None
+
+
+def set_serve(value):
+    global serve, httpd
+    serve = value
+
+    if serve:
+        start_httpd()
+    else:
+        shutdown_httpd()
+
+
+def restart_httpd():
+    global httpd
+    shutdown_httpd()
+    start_httpd()
+
+
+def shutdown_httpd():
+    global httpd
+    if httpd is not None:
+        httpd.shutdown()
+        logger.info("Shutting down http server")
+
+
+def start_httpd():
+    global httpd
+    httpd = socketserver.TCPServer(("", PORT), http.server.SimpleHTTPRequestHandler)
+    logger.info("Starting http server in {}".format(params.path))
 
 
 def set_debug(value):
