@@ -312,7 +312,7 @@ class CaptureThread(threading.Thread):
     def run(self):
         module_logger.info("Executing capture thread")
 
-        command = [self._packet_cap_util] + self._pcap_params + ["-a", "duration:{}".format(self._duration), "-w", self._output]
+        command = [self._packet_cap_util] + self._pcap_params + ["-a", "duration:{}".format(self._duration + 1), "-w", self._output]
 
         # Wait for synchronization signal
         self._initialize_flag.wait()
