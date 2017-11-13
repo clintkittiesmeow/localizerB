@@ -72,7 +72,7 @@ class Capture:
         module_logger.info("Setting up capture threads")
 
         # Show progress bar of creating threads
-        with tqdm(total=4, desc="Setting up threads") as pbar:
+        with tqdm(total=4, desc="{:<35}".format("Setting up threads")) as pbar:
 
             # Set up gps thread
             self._gps_response_queue = queue.Queue()
@@ -90,7 +90,8 @@ class Capture:
                                                                 self._start_flag,
                                                                 self._duration,
                                                                 self._degrees,
-                                                                self._bearing)
+                                                                self._bearing,
+                                                                True)
             self._antenna_thread.start()
             pbar.update()
             pbar.refresh()
@@ -141,37 +142,24 @@ class Capture:
         self._initialize_flag.set()
 
         # Print out timer to console
-        for sec in trange(self._duration, desc="Capturing packets for {}s".format((str(self._duration)))):
+        for sec in trange(self._duration, desc="{:<35}".format("Capturing packets for {}s".format((str(self._duration))))):
             time.sleep(1)
 
-        # Show progress bar of threads joining
-        with tqdm(total=4, desc="Waiting for threads") as pbar:
-
-            # Get results
-            pbar.update()
-            pbar.refresh()
-            self._channel_hopper_thread.join()
+        # Show progress bar of getting thread results
+        with tqdm(total=3, desc="{:<35}".format("Waiting for results")) as pbar:
 
             pbar.update()
             pbar.refresh()
             loop_start_time, loop_stop_time, loop_expected_time, loop_average_time = self._antenna_response_queue.get()
-            localizer.params.bearing += localizer.params.degrees
-            self._antenna_thread.join()
 
             pbar.update()
             pbar.refresh()
             _gps_results = self._gps_response_queue.get()
-            self._gps_thread.join()
 
             pbar.update()
             pbar.refresh()
             _capture_result_cap, _capture_result_drop = self._capture_response_queue.get()
             module_logger.info("Captured {} packets ({} dropped)".format(_capture_result_cap, _capture_result_drop))
-            self._capture_thread.join()
-
-        # Spawn antenna reset thread, don't wait to join
-        module_logger.info("Resetting antenna {} degrees".format(localizer.params.degrees))
-        localizer.params.bearing -= antenna.reset(localizer.params.degrees * -1)
 
         print("Processing results...")
 
@@ -268,6 +256,26 @@ class Capture:
         module_logger.info("Processed {} beacons".format(_beacon_count))
         module_logger.info("Failed to process {} beacons".format(_beacon_failures))
         print("Processed {} beacons, exported to csv file ({})".format(_beacon_count, self._output_csv_res))
+
+        # Show progress bar of joining threads
+        with tqdm(total=4, desc="{:<35}".format("Waiting for threads")) as pbar:
+
+            # Channel Hopper Thread
+            pbar.update()
+            pbar.refresh()
+            self._channel_hopper_thread.join()
+
+            pbar.update()
+            pbar.refresh()
+            self._antenna_thread.join()
+
+            pbar.update()
+            pbar.refresh()
+            self._gps_thread.join()
+
+            pbar.update()
+            pbar.refresh()
+            self._capture_thread.join()
 
 
 class CaptureThread(threading.Thread):
