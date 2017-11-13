@@ -316,7 +316,7 @@ class CaptureThread(threading.Thread):
         _timeout_start = time.time()
         curr_line = ""
         while not curr_line.startswith("File:"):
-            curr_line = proc.stderr.readline()
+            curr_line = proc.stderr.readline().decode()
             if time.time() > _timeout_start + 5:
                 raise TimeoutError("Capture process did not start as expected: {}/{}".format(curr_line, command))
             else:
