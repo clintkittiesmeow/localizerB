@@ -142,7 +142,7 @@ class Capture:
         self._initialize_flag.set()
 
         # Print out timer to console
-        for sec in trange(self._duration, desc="{:<35}".format("Capturing packets for {}s".format((str(self._duration))))):
+        for sec in trange(self._duration + 1, desc="{:<35}".format("Capturing packets for {}s".format((str(self._duration))))):
             time.sleep(1)
 
         # Show progress bar of getting thread results
