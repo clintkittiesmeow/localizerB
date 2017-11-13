@@ -194,7 +194,7 @@ class Capture:
             results_csv_writer = csv.DictWriter(results_csv, dialect="unix", fieldnames=fieldnames)
             results_csv_writer.writeheader()
 
-            for packet in tqdm(packets):
+            for packet in tqdm(packets, desc="{:<35}".format("Processing packets")):
 
                 try:
                     # Get time, bssid & db from packet
