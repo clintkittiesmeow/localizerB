@@ -328,7 +328,7 @@ class CaptureThread(threading.Thread):
         module_logger.info("Captured packets for {:.2f}s (expected {}s)".format(_end_time-_start_time, self._duration))
 
         import re
-        matches = re.search("(?<=dropped on interface\s')(?:\S+':\s)(\d+)/(\d+)", proc.stderr.decode())
+        matches = re.search("(?<=dropped on interface\s')(?:\S+':\s)(\d+)/(\d+)", proc.stderr.read().decode())
         if matches is not None and len(matches.groups()) == 2:
             num_cap = int(matches.groups()[0])
             num_drop = int(matches.groups()[1])
