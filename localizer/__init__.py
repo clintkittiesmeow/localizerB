@@ -1,10 +1,10 @@
 import atexit
-import http.server
 import logging
 import os
-import socketserver
+from threading import Event
 
 from localizer.params import Params
+from localizer.server import HTTPThread
 
 # Shared Variables
 debug = False
@@ -32,13 +32,13 @@ _console_logger.setFormatter(logging.Formatter('%(name)s - %(levelname)s: %(mess
 logger.addHandler(_console_logger)
 
 # Set up web server
-
 PORT = 80
 httpd = None
+httpd_signal = Event()
 
 
 def set_serve(value):
-    global serve, httpd
+    global serve
     serve = value
 
     if serve:
@@ -48,7 +48,6 @@ def set_serve(value):
 
 
 def restart_httpd():
-    global httpd
     shutdown_httpd()
     start_httpd()
 
@@ -56,15 +55,22 @@ def restart_httpd():
 def shutdown_httpd():
     global httpd
     if httpd is not None:
-        httpd.shutdown()
+        httpd_signal.set()
         logger.info("Shutting down http server")
+        httpd.join()
+        httpd_signal.clear()
+        httpd = None
 
 
 def start_httpd():
     global httpd
-    httpd = socketserver.TCPServer(("", PORT), http.server.SimpleHTTPRequestHandler)
-    httpd.serve_forever()
-    logger.info("Starting http server in {}".format(params.path))
+    if httpd is not None:
+        shutdown_httpd()
+    else:
+        logger.info("Starting http server in {}".format(params.path))
+        httpd = HTTPThread(httpd_signal, PORT)
+        httpd.start()
+
 
 
 def set_debug(value):
