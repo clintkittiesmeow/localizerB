@@ -1,10 +1,11 @@
 import atexit
+import http.server
 import logging
 import os
-from threading import Event
+import socketserver
+from threading import Thread
 
 from localizer.params import Params
-from localizer.server import HTTPThread
 
 # Shared Variables
 debug = False
@@ -34,7 +35,7 @@ logger.addHandler(_console_logger)
 # Set up web server
 PORT = 80
 httpd = None
-httpd_signal = Event()
+httpd_thread = None
 
 
 def set_serve(value):
@@ -53,24 +54,32 @@ def restart_httpd():
 
 
 def shutdown_httpd():
-    global httpd
+    global httpd, httpd_thread
+
     if httpd is not None:
-        httpd_signal.set()
         logger.info("Shutting down http server")
-        httpd.join()
-        httpd_signal.clear()
+        httpd.shutdown()
         httpd = None
+        httpd_thread.join()
+        httpd_thread = None
 
 
 def start_httpd():
-    global httpd
-    if httpd is not None:
+    global httpd, httpd_thread
+    if httpd is not None or httpd_thread is not None:
         shutdown_httpd()
-    else:
-        logger.info("Starting http server in {}".format(params.path))
-        httpd = HTTPThread(httpd_signal, PORT)
-        httpd.start()
 
+    logger.info("Starting http server in {}".format(params.path))
+    httpd = socketserver.TCPServer(("", PORT), QuietSimpleHTTPRequestHandler)
+    httpd_thread = Thread(target=httpd.serve_forever)
+    httpd_thread.daemon = True
+    httpd_thread.start()
+
+
+# A quiet implementation of SimpleHTTPRequestHandler
+class QuietSimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
 
 
 def set_debug(value):
