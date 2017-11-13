@@ -186,7 +186,7 @@ class Capture:
         with open(self._output_csv_res, 'w', newline='') as results_csv:
 
             # Read pcapng into memory
-            print("Initializing tshark")
+            print("Initializing tshark, loading packets into memory...")
             packets = pyshark.FileCapture(self._capture_file_pcap, display_filter='wlan[0] == 0x80')
             packets.load_packets()
             fieldnames = ['timestamp', 'bssid', 'ssi', 'channel', 'bearing',

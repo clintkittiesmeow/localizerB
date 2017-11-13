@@ -43,7 +43,7 @@ class Params:
                 raise ValueError()
             self._duration = value
         except ValueError:
-            raise ValueError("Invalid duration: {}; should be an integer > 0")
+            raise ValueError("Invalid duration: {}; should be an integer > 0".format(value))
 
     @property
     def degrees(self):
@@ -54,11 +54,9 @@ class Params:
         try:
             if not isinstance(value, float):
                 value = float(value)
-            if value <= 0:
-                raise ValueError()
             self._degrees = value
         except ValueError:
-            raise ValueError("Invalid degrees: {}; should be a float > 0")
+            raise ValueError("Invalid degrees: {}; should be a float".format(value))
 
     @property
     def bearing(self):
@@ -71,7 +69,7 @@ class Params:
                 value = float(value)
             self._bearing = value % 360
         except ValueError:
-            raise ValueError("Invalid bearing: {}; should be a float >= 0 and < 360")
+            raise ValueError("Invalid bearing: {}; should be a float >= 0 and < 360".format(value))
 
     @property
     def hop_int(self):
@@ -86,7 +84,7 @@ class Params:
                 raise ValueError()
             self._hop_int = value
         except ValueError:
-            raise ValueError("Invalid hop interval: {}; should be a float > 0")
+            raise ValueError("Invalid hop interval: {}; should be a float > 0".format(value))
 
     @property
     def path(self):
