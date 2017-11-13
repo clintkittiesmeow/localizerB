@@ -195,8 +195,15 @@ class LocalizerShell(ExitCmd, ShellCmd):
         if not localizer.params.validate():
             logger.error("You must set 'iface' and 'duration' parameters first")
         else:
+            # Shutdown http server if it's on
+            localizer.shutdown_httpd()
+
             cap = capture.Capture()
             cap.capture()
+
+            # Restart http server if it is supposed to be on
+            if localizer.serve:
+                localizer.start_httpd()
 
     def _update_prompt(self):
         """
