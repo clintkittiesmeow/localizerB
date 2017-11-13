@@ -63,6 +63,7 @@ def shutdown_httpd():
 def start_httpd():
     global httpd
     httpd = socketserver.TCPServer(("", PORT), http.server.SimpleHTTPRequestHandler)
+    httpd.serve_forever()
     logger.info("Starting http server in {}".format(params.path))
 
 
