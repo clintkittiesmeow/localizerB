@@ -86,15 +86,13 @@ class AntennaStepperThread(threading.Thread):
         """
         degrees_per_microstep = AntennaStepperThread.degrees_per_microstep
         pulses = round(degrees / degrees_per_microstep)
-        wait = duration/pulses
-        wait_half = wait/2
-
         if pulses < 0:
             GPIO.output(DIR_min, GPIO.LOW)
             pulses = -pulses
         else:
             GPIO.output(DIR_min, GPIO.HIGH)
-            pass
+        wait = duration/pulses
+        wait_half = wait/2
 
         loop_start_time = time.time()
 
