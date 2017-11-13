@@ -237,6 +237,6 @@ def cleanup():
     module_logger.info("Cleaning up all monitored interfaces")
     ifaces = get_interfaces()
 
-    for iface in tqdm(ifaces, desc="Restoring ifaces to managed mode"):
+    for iface in tqdm(ifaces, desc="{:<35}".format("Restoring ifaces to managed mode")):
         if ifaces[iface]["mode"] == "monitor":
             set_interface_mode(iface, "managed")
