@@ -22,6 +22,7 @@ setup(
         'RPi.GPIO',
         'pyshark',
         'gpsd-py3',
+        'pynmea2',
         'tqdm',
     ],
     test_suite='nose.collector',
@@ -32,6 +33,8 @@ setup(
     classifiers=[
         "Environment :: Console",
         "Operating System :: Unix",
-        "Topic :: Scientific/Engineering"
+        "Topic :: Scientific/Engineering",
+        "Programming Language :: Python :: 3.5",
+        "Intended Audience :: Science/Research"
     ],
     )

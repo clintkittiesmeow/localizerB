@@ -13,7 +13,7 @@ flag = Event()
 
 for i in range(0, len(durations)):
     # Set up thread
-    thread = AntennaStepperThread(queue_response, flag, durations[i], degrees, bearing)
+    thread = AntennaStepperThread(queue_response, flag, durations[i], degrees, bearing, False)
     thread.start()
 
     # Execute thread
