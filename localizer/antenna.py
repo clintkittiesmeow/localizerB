@@ -3,29 +3,41 @@ import logging
 import threading
 import time
 
-import RPi.GPIO as GPIO
-
 import localizer
+
+module_logger = logging.getLogger('localizer.antenna')
+
 
 # Set up GPIO
 PUL_min = 21
 DIR_min = 20
 ENA_min = 16
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(PUL_min, GPIO.OUT, initial=GPIO.LOW)
-GPIO.setup(DIR_min, GPIO.OUT)
-GPIO.setup(ENA_min, GPIO.OUT)
-GPIO.output(ENA_min, GPIO.HIGH)
-GPIO.setwarnings(False)
-
-
-module_logger = logging.getLogger('localizer.antenna')
 
 
 # Optimization https://wiki.python.org/moin/PythonSpeed/PerformanceTips
 now = time.time
 sleep = time.sleep
-output = GPIO.output
+
+
+# Try to perform GPIO setup, but if not available print error and continue
+try:
+    import RPi.GPIO as GPIO
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(PUL_min, GPIO.OUT, initial=GPIO.LOW)
+    GPIO.setup(DIR_min, GPIO.OUT)
+    GPIO.setup(ENA_min, GPIO.OUT)
+    GPIO.output(ENA_min, GPIO.HIGH)
+    GPIO.setwarnings(False)
+
+    cleanup = GPIO.cleanup
+    output = GPIO.output
+except RuntimeError as e:
+    module_logger.error(e)
+    module_logger.info("Setting up dummy functions 'cleanup' and 'output'")
+    def cleanup():
+        pass
+    def output(a, b):
+        pass
 
 
 class AntennaStepperThread(threading.Thread):
@@ -90,10 +102,10 @@ class AntennaStepperThread(threading.Thread):
         wait_half = wait/2
 
         if pulses < 0:
-            GPIO.output(DIR_min, GPIO.LOW)
+            output(DIR_min, 0)
             pulses = -pulses
         else:
-            GPIO.output(DIR_min, GPIO.HIGH)
+            output(DIR_min, 1)
 
         loop_start_time = time.time()
 
@@ -126,10 +138,10 @@ class AntennaStepperThread(threading.Thread):
 
 
 @atexit.register
-def cleanup():
+def cleanup_GPIO():
     """
     Cleanup - ensure GPIO is cleaned up properly
     """
 
     module_logger.info("Cleaning up GPIO")
-    GPIO.cleanup()
+    cleanup()

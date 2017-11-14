@@ -131,8 +131,8 @@ class LocalizerShell(ExitCmd, ShellCmd):
 
                 _processed = capture.process_directory(num_dirs)
 
-            except ValueError:
-                logger.error("This command accepts an optional into parameter. {} is not an int > 0".format(args[0]))
+            except ValueError as e:
+                logger.error("This command accepts an optional limit parameter. {} is not an int > 0".format(args[0]))
 
         else:
             _processed = capture.process_directory()
@@ -179,6 +179,8 @@ class LocalizerShell(ExitCmd, ShellCmd):
                     localizer.params.path = value
                 elif param == "test":
                     localizer.params.test = value
+                elif param == "process":
+                    localizer.params.process = value
 
                 print("Parameter '{}' set to '{}'".format(param, value))
 
@@ -226,8 +228,11 @@ class LocalizerShell(ExitCmd, ShellCmd):
             # Shutdown http server if it's on
             localizer.shutdown_httpd()
 
-            cap = capture.Capture()
-            cap.capture()
+            logger.info("Starting capture")
+            _capture_path, _meta = capture.capture()
+
+            if localizer.params.process:
+                capture.process_capture(_capture_path, _meta)
 
             # Restart http server if it is supposed to be on
             if localizer.serve:
