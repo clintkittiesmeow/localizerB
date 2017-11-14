@@ -110,8 +110,34 @@ class LocalizerShell(ExitCmd, ShellCmd):
         if localizer.serve:
             print("HTTP serving working dir {} on port :{}".format(localizer.params.path, localizer.PORT))
 
-    def complete_test(self, text, line, begidx, endidx):
-        return [i for i in self._modules if i.startswith(text)]
+    def do_process(self, args):
+        """
+        Process the results of all tests in the current working directory.
+        This command will look in each subdirectory (one deep) of the current path and if there is a valid *-test.csv, process the files and build a *.results.csv
+
+        :param args: If blank, all valid subdirectories will be searched. If given a number, only that many will be processed
+        :type args: str
+        """
+
+        _processed = 0
+
+        args = args.split()
+        if len(args) > 0:
+            try:
+                num_dirs = int(args[0])
+
+                if num_dirs <= 0:
+                    raise ValueError()
+
+                _processed = capture.process_directory(num_dirs)
+
+            except ValueError:
+                logger.error("This command accepts an optional into parameter. {} is not an int > 0".format(args[0]))
+
+        else:
+            _processed = capture.process_directory()
+
+        print("Processed {} captures".format(_processed))
 
     def do_set(self, args):
         """

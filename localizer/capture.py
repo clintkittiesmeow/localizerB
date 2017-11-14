@@ -3,6 +3,7 @@ import logging
 import os
 import queue
 import shutil
+import sys
 import threading
 import time
 from subprocess import PIPE, Popen
@@ -16,266 +17,362 @@ from localizer import antenna, wifi, gps
 
 module_logger = logging.getLogger('localizer.capture')
 
-class Capture:
-    def __init__(self, params=localizer.params):
-        """
-        A capture class that will coordinate antenna rotation and capture.
+_capture_suffixes = {"nmea": ".nmea",
+                     "pcap":".pcapng",
+                     "meta":"-test.csv",
+                     "coords":"-gps.csv"}
+_processed_suffix = "-results.csv"
 
-        :param iface: The interface to capture from
-        :type iface: str
-        :param duration: The time in seconds to complete a capture
-        :type duration: int
-        :param degrees: The number of degrees to rotate for the capture
-        :type degrees: float
-        :param bearing: The initial bearing of the antenna
-        :type bearing: float
-        :param test: Optional test parameter that is added to the working directory path for output
-        :type test: str
-        """
+_meta_csv_fieldnames = ['name',
+                        'path',
+                        'iface',
+                        'duration',
+                        'pos_lat',
+                        'pos_lon',
+                        'pos_alt',
+                        'pos_lat_err',
+                        'pos_lon_err',
+                        'pos_alt_err',
+                        'start',
+                        'end',
+                        'degrees',
+                        'bearing',
+                        'pcap',
+                        'nmea',
+                        'coords']
 
-        self._test = params.test
-        self._capture_path = params.path
-        self._iface = params.iface
-        self._duration = params.duration
-        self._degrees = params.degrees
-        self._bearing = params.bearing
-        self._hop_int = params.hop_int
+def capture():
+    # Global paths
+    _capture_path = localizer.params.path
 
-        # Set up working folder
-        os.umask(0)
-        if self._test is not None:  # If we have a test specified, put everything in that folder
-            self._capture_path = os.path.join(self._capture_path, self._test)
-        self._capture_path = os.path.join(self._capture_path, time.strftime('%Y%m%d-%H-%M-%S'))
+    # Set up working folder
+    os.umask(0)
+    if localizer.params.test is not None:  # If we have a test specified, put everything in that folder
+        _capture_path = os.path.join(_capture_path, localizer.params.test + "-" + time.strftime('%Y%m%d-%H-%M-%S'))
+    else:
+        _capture_path = os.path.join(_capture_path, time.strftime('%Y%m%d-%H-%M-%S'))
 
-        try:
-            os.makedirs(self._capture_path, exist_ok=True)
-        except OSError as e:
-            module_logger.error("Could not create the working directory {} ({})"
-                                              .format(self._capture_path, e))
-            exit(1)
+    try:
+        os.makedirs(_capture_path, exist_ok=True)
+    except OSError as e:
+        module_logger.error("Could not create the working directory {} ({})"
+                            .format(_capture_path, e))
+        exit(1)
 
-        # Make sure we can write to the folder
-        if not os.access(self._capture_path, os.W_OK | os.X_OK):
-            module_logger.error("Could not write to the working directory {}".format(self._capture_path))
-            exit(1)
+    # Make sure we can write to the folder
+    if not os.access(_capture_path, os.W_OK | os.X_OK):
+        module_logger.error("Could not write to the working directory {}".format(_capture_path))
+        exit(1)
 
-        # Create capture file names
-        self._capture_file_gps = os.path.join(self._capture_path, time.strftime('%Y%m%d-%H-%M-%S') + ".nmea")
-        self._capture_file_pcap = os.path.join(self._capture_path, time.strftime('%Y%m%d-%H-%M-%S') + ".pcapng")
-        self._output_csv_res = os.path.join(self._capture_path, time.strftime('%Y%m%d-%H-%M-%S') + "-results" + ".csv")
-        self._output_csv_test = os.path.join(self._capture_path, time.strftime('%Y%m%d-%H-%M-%S') + "-test" + ".csv")
+    # Create capture file names
+    _capture_file_pcap = os.path.join(_capture_path, time.strftime('%Y%m%d-%H-%M-%S') + _capture_suffixes["pcap"])
+    _capture_file_gps = os.path.join(_capture_path, time.strftime('%Y%m%d-%H-%M-%S') + _capture_suffixes["nmea"])
+    _output_csv_gps = os.path.join(_capture_path, time.strftime('%Y%m%d-%H-%M-%S') + _capture_suffixes["coords"])
+    _output_csv_test = os.path.join(_capture_path, time.strftime('%Y%m%d-%H-%M-%S') + _capture_suffixes["meta"])
 
-        # Threading sync flag
-        self._initialize_flag = threading.Event()
-        self._start_flag = threading.Event()
+    # Threading sync flag
+    _initialize_flag = threading.Event()
+    _start_flag = threading.Event()
 
-        module_logger.info("Setting up capture threads")
+    module_logger.info("Setting up capture threads")
 
-        # Show progress bar of creating threads
-        with tqdm(total=4, desc="{:<35}".format("Setting up threads")) as pbar:
+    # Show progress bar of creating threads
+    with tqdm(total=4, desc="{:<35}".format("Setting up threads")) as pbar:
 
-            # Set up gps thread
-            self._gps_response_queue = queue.Queue()
-            self._gps_thread = gps.GPSThread(self._gps_response_queue,
-                                             self._start_flag,
-                                             self._duration,
-                                             self._capture_file_gps)
-            self._gps_thread.start()
-            pbar.update()
-            pbar.refresh()
+        # Set up gps thread
+        _gps_response_queue = queue.Queue()
+        _gps_thread = gps.GPSThread(_gps_response_queue,
+                                    _start_flag,
+                                    localizer.params.duration,
+                                    _capture_file_gps,
+                                    _output_csv_gps)
+        _gps_thread.start()
+        pbar.update()
+        pbar.refresh()
 
-            # Set up antenna control thread
-            self._antenna_response_queue = queue.Queue()
-            self._antenna_thread = antenna.AntennaStepperThread(self._antenna_response_queue,
-                                                                self._start_flag,
-                                                                self._duration,
-                                                                self._degrees,
-                                                                self._bearing,
-                                                                True)
-            self._antenna_thread.start()
-            pbar.update()
-            pbar.refresh()
+        # Set up antenna control thread
+        _antenna_response_queue = queue.Queue()
+        _antenna_thread = antenna.AntennaStepperThread(_antenna_response_queue,
+                                                       _start_flag,
+                                                       localizer.params.duration,
+                                                       localizer.params.degrees,
+                                                       localizer.params.bearing,
+                                                       True)
+        _antenna_thread.start()
+        pbar.update()
+        pbar.refresh()
 
-            # Set up pcap thread
-            self._capture_response_queue = queue.Queue()
-            self._capture_thread = CaptureThread(self._capture_response_queue,
-                                                 self._initialize_flag,
-                                                 self._start_flag,
-                                                 self._iface,
-                                                 self._duration,
-                                                 self._capture_file_pcap)
-            self._capture_thread.start()
-            pbar.update()
-            pbar.refresh()
+        # Set up pcap thread
+        _capture_response_queue = queue.Queue()
+        _capture_thread = CaptureThread(_capture_response_queue,
+                                        _initialize_flag,
+                                        _start_flag,
+                                        localizer.params.iface,
+                                        localizer.params.duration,
+                                        _capture_file_pcap)
+        _capture_thread.start()
+        pbar.update()
+        pbar.refresh()
 
-            # Set up WiFi channel scanner thread
-            self._channel_hopper_thread = wifi.ChannelHopper(self._start_flag,
-                                                             self._iface,
-                                                             self._duration,
-                                                             self._hop_int)
-            self._channel_hopper_thread.start()
-            pbar.update()
-            pbar.refresh()
+        # Set up WiFi channel scanner thread
+        _channel_hopper_thread = wifi.ChannelHopper(_start_flag,
+                                                    localizer.params.iface,
+                                                    localizer.params.duration,
+                                                    localizer.params.hop_int)
+        _channel_hopper_thread.start()
+        pbar.update()
+        pbar.refresh()
 
-    def capture(self):
-        """
-        Executes the capture by managing the necessary threads and consolidating the actual into a single csv file
-        """
-
-        module_logger.info("Waiting for GPS 3D fix")
-        # Ensure that gps has a 3D fix
-        try:
-            _time_waited = 0
-            while gpsd.get_current().mode != 3:
-                print("Waiting for {}s for 3D gps fix (current mode = '{}' - press 'CTRL-c to cancel)\r"
-                      .format(_time_waited, gpsd.get_current().mode))
-                time.sleep(1)
-                _time_waited += 1
-        except KeyboardInterrupt:
-            print('\nCapture canceled.')
-            return
-        else:
-            print('\n')
-
-        module_logger.info("Triggering synchronized threads")
-        # Start threads
-        self._initialize_flag.set()
-
-        # Print out timer to console
-        for sec in trange(self._duration + 1, desc="{:<35}".format("Capturing packets for {}s".format((str(self._duration))))):
+    module_logger.info("Waiting for GPS 3D fix")
+    # Ensure that gps has a 3D fix
+    try:
+        _time_waited = 0
+        while gpsd.get_current().mode != 3:
+            print("Waiting for {}s for 3D gps fix (current mode = '{}' - press 'CTRL-c to cancel)\r"
+                  .format(_time_waited, gpsd.get_current().mode))
             time.sleep(1)
+            _time_waited += 1
+    except KeyboardInterrupt:
+        print('\nCapture canceled.')
+        return False
+    else:
+        print('\n')
 
-        # Show progress bar of getting thread results
-        with tqdm(total=3, desc="{:<35}".format("Waiting for results")) as pbar:
+    module_logger.info("Triggering synchronized threads")
+    # Start threads
+    _initialize_flag.set()
 
-            pbar.update()
-            pbar.refresh()
-            loop_start_time, loop_stop_time, loop_expected_time, loop_average_time = self._antenna_response_queue.get()
+    # Print out timer to console
+    for sec in trange(localizer.params.duration + 1,
+                      desc="{:<35}".format("Capturing packets for {}s".format((str(localizer.params.duration))))):
+        time.sleep(1)
 
-            pbar.update()
-            pbar.refresh()
-            _gps_results = self._gps_response_queue.get()
+    # Show progress bar of getting thread results
+    with tqdm(total=3, desc="{:<35}".format("Waiting for results")) as pbar:
 
-            pbar.update()
-            pbar.refresh()
-            _capture_result_cap, _capture_result_drop = self._capture_response_queue.get()
-            module_logger.info("Captured {} packets ({} dropped)".format(_capture_result_cap, _capture_result_drop))
+        pbar.update()
+        pbar.refresh()
+        loop_start_time, loop_stop_time, loop_expected_time, loop_average_time = _antenna_response_queue.get()
 
-        print("Processing results...")
+        pbar.update()
+        pbar.refresh()
+        _avg_lat, _avg_lon, _avg_alt, _avg_lat_err, _avg_lon_err, _avg_alt_err = _gps_response_queue.get()
 
-        # Write test metadata to disk
-        module_logger.info("Writing test metadata to csv")
-        with open(self._output_csv_test, 'w', newline='') as test_csv:
-            fieldnames = ['name', 'path', 'iface', 'duration', 'start', 'end', 'degrees', 'bearing']
-            test_csv_writer = csv.DictWriter(test_csv, dialect="unix", fieldnames=fieldnames)
-            test_csv_writer.writeheader()
-            test_csv_writer.writerow({fieldnames[0]: self._test,
-                                      fieldnames[1]: self._capture_path,
-                                      fieldnames[2]: self._iface,
-                                      fieldnames[3]: self._duration,
-                                      fieldnames[4]: loop_start_time,
-                                      fieldnames[5]: loop_stop_time,
-                                      fieldnames[6]: self._degrees,
-                                      fieldnames[7]: self._bearing})
+        pbar.update()
+        pbar.refresh()
+        _capture_result_cap, _capture_result_drop = _capture_response_queue.get()
+        module_logger.info("Captured {} packets ({} dropped)".format(_capture_result_cap, _capture_result_drop))
 
-        _beacon_count = 0
-        _beacon_failures = 0
+    print("Writing metadata...")
 
-        module_logger.info("Processing capture results")
-        # Build CSV of beacons from pcap and antenna_results
-        with open(self._output_csv_res, 'w', newline='') as results_csv:
+    # Write test metadata to disk
+    module_logger.info("Writing test metadata to csv")
+    with open(_output_csv_test, 'w', newline='') as test_csv:
+        test_csv_writer = csv.DictWriter(test_csv, dialect="unix", fieldnames=_meta_csv_fieldnames)
+        test_csv_writer.writeheader()
+        test_csv_data = {_meta_csv_fieldnames[0]: localizer.params.test,
+                         _meta_csv_fieldnames[1]: _capture_path,
+                         _meta_csv_fieldnames[2]: localizer.params.iface,
+                         _meta_csv_fieldnames[3]: localizer.params.duration,
+                         _meta_csv_fieldnames[4]: _avg_lat,
+                         _meta_csv_fieldnames[5]: _avg_lon,
+                         _meta_csv_fieldnames[6]: _avg_alt,
+                         _meta_csv_fieldnames[7]: _avg_lat_err,
+                         _meta_csv_fieldnames[8]: _avg_lon_err,
+                         _meta_csv_fieldnames[9]: _avg_alt_err,
+                         _meta_csv_fieldnames[10]: loop_start_time,
+                         _meta_csv_fieldnames[11]: loop_stop_time,
+                         _meta_csv_fieldnames[12]: localizer.params.degrees,
+                         _meta_csv_fieldnames[13]: localizer.params.bearing,
+                         _meta_csv_fieldnames[14]: _capture_file_pcap,
+                         _meta_csv_fieldnames[15]: _capture_file_gps,
+                         _meta_csv_fieldnames[16]: _output_csv_gps}
+        test_csv_writer.writerow(test_csv_data)
 
-            # Read pcapng into memory
-            print("Initializing tshark, loading packets into memory...")
-            packets = pyshark.FileCapture(self._capture_file_pcap, display_filter='wlan[0] == 0x80')
-            packets.load_packets()
-            fieldnames = ['timestamp', 'bssid', 'ssi', 'channel', 'bearing',
-                          'lat', 'lon', 'alt', 'lat_err', 'lon_error', 'alt_error']
-            results_csv_writer = csv.DictWriter(results_csv, dialect="unix", fieldnames=fieldnames)
-            results_csv_writer.writeheader()
+    # Show progress bar of joining threads
+    with tqdm(total=4, desc="{:<35}".format("Waiting for threads")) as pbar:
 
-            for packet in tqdm(packets, desc="{:<35}".format("Processing packets")):
+        # Channel Hopper Thread
+        pbar.update()
+        pbar.refresh()
+        _channel_hopper_thread.join()
 
-                try:
-                    # Get time, bssid & db from packet
-                    ptime = packet.sniff_time.timestamp()
-                    pbssid = packet.wlan.bssid
-                    pssi = int(packet.radiotap.dbm_antsignal)
-                    pchannel = int(packet.radiotap.channel_freq)
-                except AttributeError:
-                    _beacon_failures += 1
-                    continue
+        pbar.update()
+        pbar.refresh()
+        _antenna_thread.join()
 
-                # Antenna correlation
-                # Compute the timespan for the rotation, and use the relative packet time to determine
-                # where in the rotation the packet was captured
-                # This is necessary to have a smooth antenna rotation with microstepping
-                total_time = loop_stop_time - loop_start_time
-                pdiff = ptime - loop_start_time
-                if pdiff <= 0:
-                    pdiff = 0
+        pbar.update()
+        pbar.refresh()
+        _gps_thread.join()
 
-                pprogress = pdiff / total_time
-                pbearing = pprogress * self._degrees + self._bearing
+        pbar.update()
+        pbar.refresh()
+        _capture_thread.join()
 
-                # GPS correlation
-                plat = None
-                plon = None
-                palt = None
-                plat_err = None
-                plon_err = None
-                palt_err = None
-                for tstamp, message in sorted(_gps_results.items(), reverse=True):
-                    if ptime >= tstamp:
-                        plat = message.lat
-                        plon = message.lon
-                        palt = message.alt
-                        if 'y' in message.error:
-                            plat_err = message.error['y']
-                        if 'x' in message.error:
-                            plon_err = message.error['x']
-                        if 'v' in message.error:
-                            palt_err = message.error['v']
-                        break
+    return _capture_path, test_csv_data
 
-                results_csv_writer.writerow({
-                    fieldnames[0]: ptime,
-                    fieldnames[1]: pbssid,
-                    fieldnames[2]: pssi,
-                    fieldnames[3]: pchannel,
-                    fieldnames[4]: pbearing,
-                    fieldnames[5]: plat,
-                    fieldnames[6]: plon,
-                    fieldnames[7]: palt,
-                    fieldnames[8]: plat_err,
-                    fieldnames[9]: plon_err,
-                    fieldnames[10]: palt_err, })
 
-                _beacon_count += 1
+def process_capture(path, meta):
 
-        module_logger.info("Processed {} beacons".format(_beacon_count))
-        module_logger.info("Failed to process {} beacons".format(_beacon_failures))
-        print("Processed {} beacons, exported to csv file ({})".format(_beacon_count, self._output_csv_res))
+    _beacon_count = 0
+    _beacon_failures = 0
 
-        # Show progress bar of joining threads
-        with tqdm(total=4, desc="{:<35}".format("Waiting for threads")) as pbar:
+    _path = os.path.join(path, time.strftime('%Y%m%d-%H-%M-%S') + "-results" + ".csv")
 
-            # Channel Hopper Thread
-            pbar.update()
-            pbar.refresh()
-            self._channel_hopper_thread.join()
+    print("Processing capture in {}".format(path))
+    module_logger.info("Processing capture in {} (meta: {})".format(path, str(meta)))
 
-            pbar.update()
-            pbar.refresh()
-            self._antenna_thread.join()
+    # Build CSV of beacons from pcap and antenna_results
+    with open(_path, 'w', newline='') as results_csv:
 
-            pbar.update()
-            pbar.refresh()
-            self._gps_thread.join()
+        # Read pcapng into memory
+        print("Initializing tshark, loading packets into memory...")
+        packets = pyshark.FileCapture(meta["pcap"], display_filter='wlan[0] == 0x80')
+        packets.load_packets()
+        fieldnames = ['timestamp', 'bssid', 'ssi', 'channel', 'bearing',
+                      'lat', 'lon', 'alt', 'lat_err', 'lon_error', 'alt_error']
+        results_csv_writer = csv.DictWriter(results_csv, dialect="unix", fieldnames=fieldnames)
+        results_csv_writer.writeheader()
 
-            pbar.update()
-            pbar.refresh()
-            self._capture_thread.join()
+        for packet in tqdm(packets, desc="{:<35}".format("Processing packets")):
+
+            try:
+                # Get time, bssid & db from packet
+                ptime = packet.sniff_time.timestamp()
+                pbssid = packet.wlan.bssid
+                pssi = int(packet.radiotap.dbm_antsignal)
+                pchannel = int(packet.radiotap.channel_freq)
+            except AttributeError:
+                _beacon_failures += 1
+                continue
+
+            # Antenna correlation
+            # Compute the timespan for the rotation, and use the relative packet time to determine
+            # where in the rotation the packet was captured
+            # This is necessary to have a smooth antenna rotation with microstepping
+            total_time = meta["end"] - meta["start"]
+            pdiff = ptime - meta["start"]
+            if pdiff <= 0:
+                pdiff = 0
+
+            pprogress = pdiff / total_time
+            pbearing = pprogress * meta["degrees"] + meta["bearing"]
+
+            results_csv_writer.writerow({
+                fieldnames[0]: ptime,
+                fieldnames[1]: pbssid,
+                fieldnames[2]: pssi,
+                fieldnames[3]: pchannel,
+                fieldnames[4]: pbearing,
+                fieldnames[5]: meta["pos_lat"],
+                fieldnames[6]: meta["pos_lon"],
+                fieldnames[7]: meta["pos_alt"],
+                fieldnames[8]: meta["pos_lat_err"],
+                fieldnames[9]: meta["pos_lon_err"],
+                fieldnames[10]: meta["pos_alt_err"], })
+
+            _beacon_count += 1
+
+    module_logger.info("Completed processing {} beacons to {}".format(_beacon_count, _path))
+    module_logger.info("Failed to process {} beacons".format(_beacon_failures))
+    print("Completed processing {} beacons, exported to csv file ({})".format(_beacon_count, _path))
+
+
+def process_directory(limit=sys.maxsize):
+    """
+    Process an entire directory - will search subdirectories for required files and process them if not already processed
+
+    :param limit: limit on the number of directories to process
+    :type limit: int
+    :return: The number of directories processed
+    :rtype: int
+    """
+
+    _num_dirs = 0
+
+    # Walk through each subdirectory of working directory
+    for root, dirs, files in os.walk(localizer.params.path):
+        for d in dirs:
+
+            _dir_path = os.path.join(localizer.params.path, d)
+
+            # Ensure we haven't hit our limit
+            if limit <= 0:
+                break
+
+            if not _check_capture_dir(d):
+                continue
+            elif _check_capture_processed(d):
+                continue
+            else:
+                # Read in test meta csv
+                _file = _get_capture_meta(d)
+                assert _file is not None
+                _file_path = os.path.join(_dir_path, _file)
+
+                with open(_file_path, 'rb') as meta_file:
+                    _meta_reader = csv.DictReader(meta_file, dialect='unix', fieldnames=_meta_csv_fieldnames)
+                    _meta_dict = next(_meta_reader)
+
+                    process_capture(_dir_path, _meta_dict)
+                    _num_dirs += 1
+                    limit -= 1
+
+        break
+
+    return _num_dirs
+
+
+def _check_capture_dir(path):
+    """
+    Check whether the path has the required files in it to be considered a capture directory
+
+    :param path: Path to check (no recursion)
+    :type path: str
+    :return: True if the path is valid, false otherwise
+    :rtype: bool
+    """
+
+    files = os.listdir(path)
+    for suffix in _capture_suffixes.values():
+        if not any(file.endswith(suffix) for file in files):
+            return False
+
+    return True
+
+
+def _check_capture_processed(path):
+    """
+    Check whether the path has already been processed
+
+    :param path: Path to check (no recursion)
+    :type path: str
+    :return: True if the capture has been processed already, false otherwise
+    :rtype: bool
+    """
+
+    files = os.listdir(path)
+    if any(file.endswith(_processed_suffix) for file in files):
+        return True
+
+    return False
+
+
+def _get_capture_meta(path):
+    """
+    Get the capture meta file path from directory
+
+    :param path: Path to check (no recursion)
+    :type path: str
+    :return: Filename of meta file
+    :rtype: str
+    """
+
+    for file in os.listpath(path):
+        if file.endswith(_capture_suffixes["meta"]):
+            return file
+
+    return None
 
 
 class CaptureThread(threading.Thread):

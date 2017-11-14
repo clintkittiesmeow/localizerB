@@ -1,11 +1,12 @@
 import os
+from distutils.util import strtobool
 
 import localizer
 
 
 class Params:
 
-    VALID_PARAMS = ["iface", "duration", "degrees", "bearing", "hop_int", "path", "test"]
+    VALID_PARAMS = ["iface", "duration", "degrees", "bearing", "hop_int", "path", "test", "process"]
 
     def __init__(self):
 
@@ -17,6 +18,7 @@ class Params:
         self._hop_int = 0.1
         self._path = None
         self._test = None
+        self._process = False
 
     @property
     def iface(self):
@@ -117,6 +119,14 @@ class Params:
     @test.setter
     def test(self, value):
         self._test = str(value)
+
+    @property
+    def process(self):
+        return self._process
+
+    @process.setter
+    def process(self, value):
+        self._process = strtobool(value)
 
     # Validation functions
     def validate_antenna(self):
