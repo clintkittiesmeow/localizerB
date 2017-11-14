@@ -133,3 +133,4 @@ class GPSThread(threading.Thread):
 
         # send gps data back
         self._response_queue.put((_avg_lat, _avg_lon, _avg_alt, _avg_lat_err, _avg_lon_err, _avg_alt_err))
+        self._response_queue.put((_start_time, _end_time))

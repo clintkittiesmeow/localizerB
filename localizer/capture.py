@@ -41,6 +41,7 @@ _meta_csv_fieldnames = ['name',
                         'nmea',
                         'coords']
 
+
 def capture():
     # Global paths
     _capture_path = localizer.params.path
@@ -168,9 +169,9 @@ def capture():
     # Write test metadata to disk
     module_logger.info("Writing test metadata to csv")
     with open(_output_csv_test, 'w', newline='') as test_csv:
-        test_csv_writer = csv.DictWriter(test_csv, dialect="unix", fieldnames=_meta_csv_fieldnames)
-        test_csv_writer.writeheader()
-        test_csv_data = {_meta_csv_fieldnames[0]: localizer.params.test,
+        _test_csv_writer = csv.DictWriter(test_csv, dialect="unix", fieldnames=_meta_csv_fieldnames)
+        _test_csv_writer.writeheader()
+        _test_csv_data = {_meta_csv_fieldnames[0]: localizer.params.test,
                          _meta_csv_fieldnames[1]: _capture_path,
                          _meta_csv_fieldnames[2]: localizer.params.iface,
                          _meta_csv_fieldnames[3]: localizer.params.duration,
@@ -187,7 +188,7 @@ def capture():
                          _meta_csv_fieldnames[14]: _capture_file_pcap,
                          _meta_csv_fieldnames[15]: _capture_file_gps,
                          _meta_csv_fieldnames[16]: _output_csv_gps}
-        test_csv_writer.writerow(test_csv_data)
+        _test_csv_writer.writerow(_test_csv_data)
 
     # Show progress bar of joining threads
     with tqdm(total=4, desc="{:<35}".format("Waiting for threads")) as pbar:
@@ -209,7 +210,7 @@ def capture():
         pbar.refresh()
         _capture_thread.join()
 
-    return _capture_path, test_csv_data
+    return _capture_path, _test_csv_data
 
 
 def process_capture(path, meta):
@@ -223,59 +224,65 @@ def process_capture(path, meta):
     module_logger.info("Processing capture in {} (meta: {})".format(path, str(meta)))
 
     # Build CSV of beacons from pcap and antenna_results
-    with open(_path, 'w', newline='') as results_csv:
+    try:
+        with open(_path, 'w', newline='') as results_csv:
 
-        # Read pcapng into memory
-        print("Initializing tshark, loading packets into memory...")
-        packets = pyshark.FileCapture(meta["pcap"], display_filter='wlan[0] == 0x80')
-        packets.load_packets()
-        fieldnames = ['timestamp', 'bssid', 'ssi', 'channel', 'bearing',
-                      'lat', 'lon', 'alt', 'lat_err', 'lon_error', 'alt_error']
-        results_csv_writer = csv.DictWriter(results_csv, dialect="unix", fieldnames=fieldnames)
-        results_csv_writer.writeheader()
+            # Read pcapng into memory
+            print("Initializing tshark, loading packets into memory...")
+            packets = pyshark.FileCapture(meta["pcap"], display_filter='wlan[0] == 0x80')
+            packets.load_packets()
+            fieldnames = ['timestamp', 'bssid', 'ssi', 'channel', 'bearing',
+                          'lat', 'lon', 'alt', 'lat_err', 'lon_error', 'alt_error']
+            results_csv_writer = csv.DictWriter(results_csv, dialect="unix", fieldnames=fieldnames)
+            results_csv_writer.writeheader()
 
-        for packet in tqdm(packets, desc="{:<35}".format("Processing packets")):
+            for packet in tqdm(packets, desc="{:<35}".format("Processing packets")):
 
-            try:
-                # Get time, bssid & db from packet
-                ptime = packet.sniff_time.timestamp()
-                pbssid = packet.wlan.bssid
-                pssi = int(packet.radiotap.dbm_antsignal)
-                pchannel = int(packet.radiotap.channel_freq)
-            except AttributeError:
-                _beacon_failures += 1
-                continue
+                try:
+                    # Get time, bssid & db from packet
+                    ptime = packet.sniff_time.timestamp()
+                    pbssid = packet.wlan.bssid
+                    pssi = int(packet.radiotap.dbm_antsignal)
+                    pchannel = int(packet.radiotap.channel_freq)
+                except AttributeError:
+                    _beacon_failures += 1
+                    continue
 
-            # Antenna correlation
-            # Compute the timespan for the rotation, and use the relative packet time to determine
-            # where in the rotation the packet was captured
-            # This is necessary to have a smooth antenna rotation with microstepping
-            total_time = meta["end"] - meta["start"]
-            pdiff = ptime - meta["start"]
-            if pdiff <= 0:
-                pdiff = 0
+                # Antenna correlation
+                # Compute the timespan for the rotation, and use the relative packet time to determine
+                # where in the rotation the packet was captured
+                # This is necessary to have a smooth antenna rotation with microstepping
+                total_time = float(meta["end"]) - float(meta["start"])
+                pdiff = ptime - float(meta["start"])
+                if pdiff <= 0:
+                    pdiff = 0
 
-            pprogress = pdiff / total_time
-            pbearing = pprogress * meta["degrees"] + meta["bearing"]
+                pprogress = pdiff / total_time
+                pbearing = pprogress * float(meta["degrees"]) + float(meta["bearing"])
 
-            results_csv_writer.writerow({
-                fieldnames[0]: ptime,
-                fieldnames[1]: pbssid,
-                fieldnames[2]: pssi,
-                fieldnames[3]: pchannel,
-                fieldnames[4]: pbearing,
-                fieldnames[5]: meta["pos_lat"],
-                fieldnames[6]: meta["pos_lon"],
-                fieldnames[7]: meta["pos_alt"],
-                fieldnames[8]: meta["pos_lat_err"],
-                fieldnames[9]: meta["pos_lon_err"],
-                fieldnames[10]: meta["pos_alt_err"], })
+                results_csv_writer.writerow({
+                    fieldnames[0]: ptime,
+                    fieldnames[1]: pbssid,
+                    fieldnames[2]: pssi,
+                    fieldnames[3]: pchannel,
+                    fieldnames[4]: pbearing,
+                    fieldnames[5]: meta["pos_lat"],
+                    fieldnames[6]: meta["pos_lon"],
+                    fieldnames[7]: meta["pos_alt"],
+                    fieldnames[8]: meta["pos_lat_err"],
+                    fieldnames[9]: meta["pos_lon_err"],
+                    fieldnames[10]: meta["pos_alt_err"], })
 
-            _beacon_count += 1
+                _beacon_count += 1
 
-    module_logger.info("Completed processing {} beacons to {}".format(_beacon_count, _path))
-    module_logger.info("Failed to process {} beacons".format(_beacon_failures))
-    print("Completed processing {} beacons, exported to csv file ({})".format(_beacon_count, _path))
+        module_logger.info("Completed processing {} beacons to {}".format(_beacon_count, _path))
+        module_logger.info("Failed to process {} beacons".format(_beacon_failures))
+        print("Completed processing {} beacons, exported to csv file ({})".format(_beacon_count, _path))
+
+    except ValueError as e:
+        module_logger.error(e)
+        # Delete csv
+        os.remove(_path)
 
 
 def process_directory(limit=sys.maxsize):
@@ -310,8 +317,8 @@ def process_directory(limit=sys.maxsize):
                 assert _file is not None
                 _file_path = os.path.join(_dir_path, _file)
 
-                with open(_file_path, 'rb') as meta_file:
-                    _meta_reader = csv.DictReader(meta_file, dialect='unix', fieldnames=_meta_csv_fieldnames)
+                with open(_file_path, 'rt') as meta_file:
+                    _meta_reader = csv.DictReader(meta_file, dialect='unix')
                     _meta_dict = next(_meta_reader)
 
                     process_capture(_dir_path, _meta_dict)
@@ -368,7 +375,7 @@ def _get_capture_meta(path):
     :rtype: str
     """
 
-    for file in os.listpath(path):
+    for file in os.listdir(path):
         if file.endswith(_capture_suffixes["meta"]):
             return file
 

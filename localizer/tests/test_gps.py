@@ -35,8 +35,9 @@ class TestGPS(unittest.TestCase):
     def test_3_gps_capture(self):
         _response_queue = queue.Queue()
         _flag = Event()
-        _tmp_path = os.path.join(localizer.params.path, 'tmp.nmea')
-        _thread = gps.GPSThread(_response_queue, _flag, localizer.params.duration, _tmp_path)
+        _tmp_nmea = os.path.join(localizer.params.path, 'tmp.nmea')
+        _tmp_csv = os.path.join(localizer.params.path, 'tmp.csv')
+        _thread = gps.GPSThread(_response_queue, _flag, localizer.params.duration, _tmp_nmea, _tmp_csv)
         _thread.start()
         _flag.set()
 
@@ -45,14 +46,22 @@ class TestGPS(unittest.TestCase):
                 .format((str(localizer.params.duration)))):
             time.sleep(1)
 
-        gps_sentences = _response_queue.get()
+        _avg_lat, _avg_lon, _avg_alt, _avg_lat_err, _avg_lon_err, _avg_alt_err = _response_queue.get()
+        _start, _end = _response_queue.get()
 
-        self.assertGreater(len(gps_sentences), 0, msg="Failed to capture NMEA data from gpsd")
+        self.assertAlmostEqual(_end-_start, localizer.params.duration, 0, "GPS Capture took too long (> 1s difference)")
 
-        self.assertTrue(os.path.isfile(_tmp_path), msg="Failed to create packet capture")
+        self.assertNotEqual(_avg_lat, 0, "Failed to get latitude")
+        self.assertNotEqual(_avg_lon, 0, "Failed to get longitude")
+        self.assertNotEqual(_avg_alt, 0, "Failed to get altitude")
+
+        self.assertTrue(os.path.isfile(_tmp_nmea), msg="Failed to create NMEA capture")
+        self.assertTrue(os.path.isfile(_tmp_csv), msg="Failed to create parsed NMEA capture")
         # Cleanup file
-        os.remove(_tmp_path)
-        self.assertFalse(os.path.isfile(_tmp_path), msg="Failed to remove packet capture")
+        os.remove(_tmp_nmea)
+        os.remove(_tmp_csv)
+        self.assertFalse(os.path.isfile(_tmp_nmea), msg="Failed to remove NMEA capture")
+        self.assertFalse(os.path.isfile(_tmp_csv), msg="Failed to remove parsed NMEA capture")
 
         _thread.join()
 
