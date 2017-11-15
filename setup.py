@@ -22,7 +22,6 @@ setup(
         'RPi.GPIO',
         'pyshark',
         'gpsd-py3',
-        'pynmea2',
         'tqdm',
     ],
     test_suite='nose.collector',

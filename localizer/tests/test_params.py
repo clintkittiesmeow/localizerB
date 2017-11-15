@@ -24,6 +24,8 @@ class TestParams(TestCase):
             params.path = None
         with self.assertRaises(ValueError):
             params.path = 123456
+        with self.assertRaises(ValueError):
+            params.process = "Nuttin"
 
         params.bearing = -1000
         self.assertGreaterEqual(params.bearing, 0)

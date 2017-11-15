@@ -1,3 +1,4 @@
+import math
 import os
 import queue
 import tempfile
@@ -49,7 +50,7 @@ class TestGPS(unittest.TestCase):
         _avg_lat, _avg_lon, _avg_alt, _avg_lat_err, _avg_lon_err, _avg_alt_err = _response_queue.get()
         _start, _end = _response_queue.get()
 
-        self.assertAlmostEqual(_end-_start, localizer.params.duration, 0, "GPS Capture took too long (> 1s difference)")
+        self.assertEquals(math.floor(_end-_start-localizer.params.duration), 0, "GPS Capture took too long (> 1s difference)")
 
         self.assertNotEqual(_avg_lat, 0, "Failed to get latitude")
         self.assertNotEqual(_avg_lon, 0, "Failed to get longitude")

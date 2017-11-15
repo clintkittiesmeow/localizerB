@@ -16,6 +16,8 @@ IEEE80211bg_intl = IEEE80211bg + [12, 13, 14]
 IEEE80211a = [36, 40, 44, 48, 52, 56, 60, 64, 149, 153, 157, 161]
 IEEE80211bga = IEEE80211bg + IEEE80211a
 IEEE80211bga_intl = IEEE80211bg_intl + IEEE80211a
+TU = 1024/1000000  # 1 TU = 1024 usec https://en.wikipedia.org/wiki/TU_(Time_Unit)
+STD_BEACON_INT = 100*TU
 
 module_logger = logging.getLogger('localizer.wifi')
 
@@ -183,7 +185,7 @@ def set_channel(iface, channel):
 
 
 class ChannelHopper(threading.Thread):
-    def __init__(self, event_flag, iface, duration, interval, channels=IEEE80211bg):
+    def __init__(self, event_flag, iface, duration, interval, response_queue=None, channels=IEEE80211bg):
         """
         Wait for commands on the queue and asynchronously change channels of wireless interface with specified timing.
 
@@ -196,11 +198,13 @@ class ChannelHopper(threading.Thread):
         module_logger.info("Starting Channel Hopper Thread")
 
         self.daemon = True
-        self._iface = iface
         self._event_flag = event_flag
+        self._iface = iface
         self._duration = duration
         self._interval = interval
+        self._response_queue = response_queue
         self._channels = channels
+        self._channel = 1
 
         # Ensure we are in monitor mode
         if get_interface_mode(self._iface) != "monitor":
@@ -208,23 +212,34 @@ class ChannelHopper(threading.Thread):
         assert(get_interface_mode(self._iface) == "monitor")
 
         # Set channel to first channel
-        set_channel(iface, 1)
+        set_channel(iface, self._channel)
 
     def run(self):
 
-        len_of_channels = len(self._channels)
+        _chan_len = len(self._channels)
+        _chan = self._channel
+        _channels = []
+
+        # Build local channel list for speed
+        for c in self._channels:
+            _channels.append(str(c))
 
         # Wait for synchronization signal
         self._event_flag.wait()
 
         # HOP CHANNELS https://github.com/elBradford/snippets/blob/master/chanhop.sh
         _start_time = time.time()
-        for i in range(round(self._duration/self._interval)):
-            call(['iwconfig', self._iface, 'channel',
-                  str(self._channels[i % len_of_channels])], stdout=localizer.DN, stderr=localizer.DN)
+        _stop_time = _start_time + self._duration
+        while _stop_time > time.time():
+            _chan = (_chan + 1) % _chan_len
+            _chan_str = _channels[_chan]
+            call(['iwconfig', self._iface, 'channel', _chan_str], stdout=localizer.DN, stderr=localizer.DN)
             time.sleep(self._interval)
 
         _end_time = time.time()
+
+        if self._response_queue is not None:
+            self._response_queue.put((_start_time, _end_time))
         module_logger.info("Hopped channels for {:.2f}s (expected {}s)".format(_end_time-_start_time, self._duration))
 
 

@@ -1,3 +1,4 @@
+import math
 import os
 import queue
 import tempfile
@@ -30,9 +31,11 @@ class TestCapture(unittest.TestCase):
     def test_2_packet_capture(self):
         _response_queue = queue.Queue()
         _flag = Event()
+        _dummyflag = Event()
         _tmp_path = os.path.join(localizer.params.path, 'tmp.pcapng')
         _thread = CaptureThread(_response_queue,
                                 _flag,
+                                _dummyflag,
                                 localizer.params.iface,
                                 localizer.params.duration,
                                 _tmp_path)
@@ -45,7 +48,9 @@ class TestCapture(unittest.TestCase):
             time.sleep(1)
 
         num_rcv, num_drop = _response_queue.get()
+        _start, _end = _response_queue.get()
 
+        self.assertEquals(math.floor(_end-_start-localizer.params.duration), 0, "Capture took too long (> 1s difference)")
         print("Received {} packets (dropped {} packets)".format(num_rcv, num_drop))
         self.assertGreater(num_rcv, 0, "Failed to capture any packets")
         self.assertEqual(num_drop, 0, "Dropped packets")

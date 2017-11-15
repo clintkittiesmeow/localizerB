@@ -3,8 +3,6 @@ import logging
 import threading
 import time
 
-import localizer
-
 module_logger = logging.getLogger('localizer.antenna')
 
 
@@ -131,8 +129,6 @@ class AntennaStepperThread(threading.Thread):
         loop_stop_time = time.time()
 
         loop_average_time = (time.time() - loop_start_time) / pulses
-
-        localizer.params.bearing += degrees
 
         return loop_start_time, loop_stop_time, wait, loop_average_time
 

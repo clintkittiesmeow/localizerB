@@ -10,7 +10,6 @@ from localizer.params import Params
 # Shared Variables
 debug = False
 serve = False
-params = Params()
 
 
 # Console colors
@@ -70,11 +69,51 @@ def start_httpd():
     if httpd is not None or httpd_thread is not None:
         shutdown_httpd()
 
-    logger.info("Starting http server in {}".format(params.path))
+    logger.info("Starting http server in {}".format(os.getcwd()))
     httpd = socketserver.TCPServer(("", PORT), QuietSimpleHTTPRequestHandler)
     httpd_thread = Thread(target=httpd.serve_forever)
     httpd_thread.daemon = True
     httpd_thread.start()
+
+
+# Working Directory
+_working_dir = None
+
+
+def set_working_dir(path):
+    global _working_dir
+
+    if path == _working_dir:
+        return
+
+    _current_dir = os.getcwd()
+
+    try:
+        # cd into directory
+        os.chdir(path)
+        _new_path = os.getcwd()
+
+        # Try to write and remove a tempfile to the directory
+        _tmpfile = os.path.join(_new_path, 'tmpfile')
+        with open(_tmpfile, 'w') as fp:
+            fp.write(" ")
+        os.remove(_tmpfile)
+
+        # restart httpd if it's running
+        if serve:
+            restart_httpd()
+
+        _working_dir = _new_path
+    except (PermissionError, TypeError):
+        os.chdir(_current_dir)
+        raise ValueError("Cannot write to working directory '{}'".format(path))
+    except FileNotFoundError:
+        os.chdir(_current_dir)
+        raise ValueError("Invalid directory '{}'".format(path))
+
+
+def get_working_dir():
+    return _working_dir
 
 
 # A quiet implementation of SimpleHTTPRequestHandler
