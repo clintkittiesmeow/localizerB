@@ -32,12 +32,12 @@ class ExitCmd(Cmd):
         return False
 
     @staticmethod
-    def do_exit(args):
+    def do_exit(_):
         """Exit the interpreter."""
         return True
 
     @staticmethod
-    def do_quit(args):
+    def do_quit(_):
         """Exit the interpreter."""
         return True
 
@@ -48,9 +48,9 @@ class ExitCmd(Cmd):
 # Helper class for shell command functionality
 class ShellCmd(Cmd, object):
     @staticmethod
-    def do_shell(s):
+    def do_shell(args):
         """Execute shell commands in the format 'shell <command>'"""
-        os.system(s)
+        os.system(args)
 
 
 # Helper class for debug toggling
@@ -132,7 +132,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         self.cmdloop('Welcome to Localizer Shell...')
 
     @staticmethod
-    def do_serve(self, args):
+    def do_serve(args):
         """
         Sets serving of the working directory over http:80, or shows current setting if no param given
 
@@ -152,12 +152,14 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         if localizer.serve:
             print("HTTP serving working dir {} on port :{}".format(os.getcwd(), localizer.PORT))
 
-    def do_process(self, args):
+    @staticmethod
+    def do_process(args):
         """
         Process the results of all tests in the current working directory.
-        This command will look in each subdirectory (one deep) of the current path and if there is a valid *-test.csv, process the files and build a *.results.csv
+        This command will look in each subdirectory (one deep) of the current path for unprocessed tests
+        It looks for valid *-test.csv, etc, and process the files to build a *.results.csv
 
-        :param args: If blank, all valid subdirectories will be searched. If given a number, only that many will be processed
+        :param args: Process provided number of dirs. If blank, all valid subdirectories will be searched.
         :type args: str
         """
 
@@ -173,7 +175,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
                 _processed = capture.process_directory(num_dirs)
 
-            except ValueError as e:
+            except ValueError:
                 logger.error("This command accepts an optional limit parameter. {} is not an int > 0".format(args[0]))
 
         else:
@@ -254,12 +256,9 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             print("Debug is {}".format(localizer.debug))
             print("HTTP server is {}".format(localizer.serve))
 
-    def do_capture(self, args):
+    def do_capture(self, _):
         """
         Start the capture with the needed parameters set
-
-        :param args: No parameter needed, but required parameters must be set using the `set` command
-        :type args: str
         """
 
         if not self._params.validate():
@@ -278,7 +277,8 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             if localizer.serve:
                 localizer.start_httpd()
 
-    def do_batch(self, args):
+    @staticmethod
+    def do_batch(_):
         """
         Start batch mode
         """
@@ -355,7 +355,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         logging.info("Imported {} batches".format(len(_batches)))
         self._batches.extend(_batches)
 
-    def do_capture(self, args):
+    def do_capture(self, _):
         """
         Run all the imported tests
         """
@@ -364,7 +364,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             print("No batches have been imported")
         else:
             _total = 0
-            for _,_passes,_tests in self._batches:
+            for _, _passes, _tests in self._batches:
                 _total += len(_tests)*_passes
 
             print("Starting batch of {} tests".format(_total))
@@ -375,14 +375,11 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                     for p in range(_passes):
                         print(localizer.R + "Test {:>4}/{}".format(_curr, _total) + localizer.W)
                         capture.capture(test, str(p).zfill(_len_pass))
+                        _curr += 1
 
-
-    def do_show(self, args):
+    def do_show(self, _):
         """
         Print the tests
-
-        :param args: Number of tests
-        :type args: str
         """
 
         for _name, _passes, _tests in self._batches:
@@ -395,7 +392,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         Pause between tests to allow for antenna calibration
 
         :param args: True to pause between tests, False to continue to the next test immediately
-        :param type: str
+        :type args: str
         """
 
         args = args.split()
@@ -407,7 +404,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
         print("Pause is {}".format("ENABLED" if self._pause else "DISABLED"))
 
-    def do_clear(self, args):
+    def do_clear(self, _):
         """
         Clear all batches
         """

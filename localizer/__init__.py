@@ -118,7 +118,7 @@ def get_working_dir():
 
 # A quiet implementation of SimpleHTTPRequestHandler
 class QuietSimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
-    def log_message(self, format, *args):
+    def log_message(self, fmt, *args):
         pass
 
 
