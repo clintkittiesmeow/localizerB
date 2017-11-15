@@ -12,15 +12,14 @@ import gpsd
 import pyshark
 from tqdm import tqdm, trange
 
-import localizer
 from localizer import antenna, wifi, gps
 
 module_logger = logging.getLogger('localizer.capture')
 
 _capture_suffixes = {"nmea": ".nmea",
-                     "pcap":".pcapng",
-                     "meta":"-test.csv",
-                     "coords":"-gps.csv"}
+                     "pcap": ".pcapng",
+                     "meta": "-test.csv",
+                     "coords": "-gps.csv"}
 _processed_suffix = "-results.csv"
 
 _meta_csv_fieldnames = ['name',
@@ -42,16 +41,16 @@ _meta_csv_fieldnames = ['name',
                         'coords']
 
 
-def capture():
+def capture(params, sub=None):
     # Global paths
-    _capture_path = localizer.params.path
+    _capture_path = os.getcwd()
 
     # Set up working folder
     os.umask(0)
-    if localizer.params.test is not None:  # If we have a test specified, put everything in that folder
-        _capture_path = os.path.join(_capture_path, localizer.params.test + "-" + time.strftime('%Y%m%d-%H-%M-%S'))
-    else:
-        _capture_path = os.path.join(_capture_path, time.strftime('%Y%m%d-%H-%M-%S'))
+    _capture_path = os.path.join(_capture_path, params.test)
+
+    if sub is not None:
+        _capture_path = os.path.join(_capture_path, sub)
 
     try:
         os.makedirs(_capture_path, exist_ok=True)
@@ -84,7 +83,7 @@ def capture():
         _gps_response_queue = queue.Queue()
         _gps_thread = gps.GPSThread(_gps_response_queue,
                                     _start_flag,
-                                    localizer.params.duration,
+                                    params.duration,
                                     _capture_file_gps,
                                     _output_csv_gps)
         _gps_thread.start()
@@ -95,9 +94,9 @@ def capture():
         _antenna_response_queue = queue.Queue()
         _antenna_thread = antenna.AntennaStepperThread(_antenna_response_queue,
                                                        _start_flag,
-                                                       localizer.params.duration,
-                                                       localizer.params.degrees,
-                                                       localizer.params.bearing,
+                                                       params.duration,
+                                                       params.degrees,
+                                                       params.bearing,
                                                        True)
         _antenna_thread.start()
         pbar.update()
@@ -108,8 +107,8 @@ def capture():
         _capture_thread = CaptureThread(_capture_response_queue,
                                         _initialize_flag,
                                         _start_flag,
-                                        localizer.params.iface,
-                                        localizer.params.duration,
+                                        params.iface,
+                                        params.duration,
                                         _capture_file_pcap)
         _capture_thread.start()
         pbar.update()
@@ -117,9 +116,9 @@ def capture():
 
         # Set up WiFi channel scanner thread
         _channel_hopper_thread = wifi.ChannelHopper(_start_flag,
-                                                    localizer.params.iface,
-                                                    localizer.params.duration,
-                                                    localizer.params.hop_int)
+                                                    params.iface,
+                                                    params.duration,
+                                                    params.hop_int)
         _channel_hopper_thread.start()
         pbar.update()
         pbar.refresh()
@@ -144,8 +143,8 @@ def capture():
     _initialize_flag.set()
 
     # Print out timer to console
-    for sec in trange(localizer.params.duration + 1,
-                      desc="{:<35}".format("Capturing packets for {}s".format((str(localizer.params.duration))))):
+    for sec in trange(params.duration + 1,
+                      desc="{:<35}".format("Capturing packets for {}s".format((str(params.duration))))):
         time.sleep(1)
 
     # Show progress bar of getting thread results
@@ -171,10 +170,10 @@ def capture():
     with open(_output_csv_test, 'w', newline='') as test_csv:
         _test_csv_writer = csv.DictWriter(test_csv, dialect="unix", fieldnames=_meta_csv_fieldnames)
         _test_csv_writer.writeheader()
-        _test_csv_data = {_meta_csv_fieldnames[0]: localizer.params.test,
+        _test_csv_data = {_meta_csv_fieldnames[0]: params.test,
                          _meta_csv_fieldnames[1]: _capture_path,
-                         _meta_csv_fieldnames[2]: localizer.params.iface,
-                         _meta_csv_fieldnames[3]: localizer.params.duration,
+                         _meta_csv_fieldnames[2]: params.iface,
+                         _meta_csv_fieldnames[3]: params.duration,
                          _meta_csv_fieldnames[4]: _avg_lat,
                          _meta_csv_fieldnames[5]: _avg_lon,
                          _meta_csv_fieldnames[6]: _avg_alt,
@@ -183,8 +182,8 @@ def capture():
                          _meta_csv_fieldnames[9]: _avg_alt_err,
                          _meta_csv_fieldnames[10]: loop_start_time,
                          _meta_csv_fieldnames[11]: loop_stop_time,
-                         _meta_csv_fieldnames[12]: localizer.params.degrees,
-                         _meta_csv_fieldnames[13]: localizer.params.bearing,
+                         _meta_csv_fieldnames[12]: params.degrees,
+                         _meta_csv_fieldnames[13]: params.bearing,
                          _meta_csv_fieldnames[14]: _capture_file_pcap,
                          _meta_csv_fieldnames[15]: _capture_file_gps,
                          _meta_csv_fieldnames[16]: _output_csv_gps}
@@ -298,10 +297,10 @@ def process_directory(limit=sys.maxsize):
     _num_dirs = 0
 
     # Walk through each subdirectory of working directory
-    for root, dirs, files in os.walk(localizer.params.path):
+    for root, dirs, files in os.walk(os.getcwd()):
         for d in dirs:
 
-            _dir_path = os.path.join(localizer.params.path, d)
+            _dir_path = os.path.join(os.getcwd(), d)
 
             # Ensure we haven't hit our limit
             if limit <= 0:
@@ -449,3 +448,4 @@ class CaptureThread(threading.Thread):
 
         # Respond with actual
         self._response_queue.put((num_cap, num_drop))
+        self._response_queue.put((_start_time, _end_time))

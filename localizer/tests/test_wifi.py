@@ -1,3 +1,4 @@
+import math
 import queue
 import tempfile
 import time
@@ -40,9 +41,13 @@ class TestWifi(unittest.TestCase):
                                  msg="Failed to enable {} mode on iface {}".format(mode, iface))
 
     def test_3_channel_hop(self):
-        _command_queue = queue.Queue()
         _flag = Event()
-        _thread = wifi.ChannelHopper(_flag, localizer.params.iface, localizer.params.duration, localizer.params.hop_int)
+        _response_queue = queue.Queue()
+        _thread = wifi.ChannelHopper(_flag,
+                                     localizer.params.iface,
+                                     localizer.params.duration,
+                                     localizer.params.hop_int,
+                                     _response_queue)
         _thread.start()
         _flag.set()
 
@@ -60,6 +65,9 @@ class TestWifi(unittest.TestCase):
                 time.sleep(1)
 
         self.assertTrue(_channel_changed)
+
+        _start, _end = _response_queue.get()
+        self.assertEquals(math.floor(_end-_start-localizer.params.duration), 0, "Thread took too long (> 1s difference)")
 
         _thread.join()
 

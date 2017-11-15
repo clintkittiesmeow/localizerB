@@ -24,7 +24,7 @@ def main():
 
     # Validate provided directory
     try:
-        localizer.params.path = args.workingdir
+        localizer.set_working_dir(args.workingdir)
     except ValueError as e:
         print(e)
         exit(1)

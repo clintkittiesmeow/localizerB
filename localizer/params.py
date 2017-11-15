@@ -1,24 +1,31 @@
-import os
+import time
 from distutils.util import strtobool
 
 import localizer
+from localizer.wifi import STD_BEACON_INT
 
 
 class Params:
 
-    VALID_PARAMS = ["iface", "duration", "degrees", "bearing", "hop_int", "path", "test", "process"]
+    VALID_PARAMS = ["iface", "duration", "degrees", "bearing", "hop_int", "test", "process"]
 
-    def __init__(self):
+    def __init__(self,
+                 iface=None,
+                 duration=15,
+                 degrees=360.0,
+                 bearing=0.0,
+                 hop_int=STD_BEACON_INT,
+                 test=time.strftime('%Y%m%d-%H-%M-%S'),
+                 process=False):
 
         # Default Values
-        self._iface = None
-        self._duration = 15
-        self._degrees = 360.0
-        self._bearing = 0.0
-        self._hop_int = 0.1
-        self._path = None
-        self._test = None
-        self._process = False
+        self._iface = iface
+        self.duration = duration
+        self.degrees = degrees
+        self.bearing = bearing
+        self.hop_int = hop_int
+        self.test = test
+        self.process = process
 
     @property
     def iface(self):
@@ -81,36 +88,12 @@ class Params:
     def hop_int(self, value):
         try:
             if not isinstance(value, float):
-                value = float(value)
+                value = round(float(value), 5)
             if value <= 0:
                 raise ValueError()
             self._hop_int = value
         except ValueError:
             raise ValueError("Invalid hop interval: {}; should be a float > 0".format(value))
-
-    @property
-    def path(self):
-        return self._path
-
-    @path.setter
-    def path(self, value):
-        try:
-            # Try to write and remove a tempfile to the directory
-            tmpfile = os.path.join(value, 'tmpfile')
-            with open(tmpfile, 'w') as fp:
-                fp.write(" ")
-            os.remove(tmpfile)
-
-            # cd into directory
-            os.chdir(value)
-
-            # restart httpd if it's running
-            if localizer.serve and self._path != value:
-                localizer.restart_httpd()
-
-            self._path = value
-        except (PermissionError, FileNotFoundError, TypeError):
-            raise ValueError("Cannot write to working directory '{}'".format(value))
 
     @property
     def test(self):
@@ -126,7 +109,12 @@ class Params:
 
     @process.setter
     def process(self, value):
-        self._process = strtobool(value)
+        if isinstance(value, bool):
+            self._process = value
+        elif isinstance(value, str):
+            self._process = strtobool(value)
+        else:
+            raise ValueError("Cannot parse '{}' as a bool".format(str(value)))
 
     # Validation functions
     def validate_antenna(self):
@@ -135,14 +123,11 @@ class Params:
                self.bearing is not None
 
     def validate_gps(self):
-        return self.duration is not None and\
-               self.path is not None
+        return self.duration is not None
 
     def validate_capture(self):
         return self.iface is not None and \
-               self.duration is not None and \
-               self.path is not None
-
+               self.duration is not None
     def validate_wifi(self):
         return self.iface is not None and \
                self.duration is not None and \
