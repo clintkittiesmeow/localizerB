@@ -24,7 +24,7 @@ try:
     GPIO.setup(PUL_min, GPIO.OUT, initial=GPIO.LOW)
     GPIO.setup(DIR_min, GPIO.OUT)
     GPIO.setup(ENA_min, GPIO.OUT)
-    GPIO.output(ENA_min, GPIO.HIGH)
+    GPIO.output(ENA_min, GPIO.LOW)
     GPIO.setwarnings(False)
 
     cleanup = GPIO.cleanup
@@ -133,6 +133,16 @@ class AntennaStepperThread(threading.Thread):
         loop_average_time = (time.time() - loop_start_time) / pulses
 
         return loop_start_time, loop_stop_time, wait, loop_average_time
+
+
+def antenna_set_en(val):
+    """
+    Set the antenna enable pin
+    :param val: Enable value to send
+    :type val: bool
+    """
+
+    output(ENA_min, val)
 
 
 @atexit.register
