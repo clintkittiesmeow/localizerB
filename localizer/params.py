@@ -128,6 +128,7 @@ class Params:
     def validate_capture(self):
         return self.iface is not None and \
                self.duration is not None
+
     def validate_wifi(self):
         return self.iface is not None and \
                self.duration is not None and \

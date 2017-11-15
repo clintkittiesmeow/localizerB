@@ -143,8 +143,8 @@ def capture(params, sub=None):
     _initialize_flag.set()
 
     # Print out timer to console
-    for sec in trange(params.duration + 1,
-                      desc="{:<35}".format("Capturing packets for {}s".format((str(params.duration))))):
+    for _ in trange(params.duration + 1, desc="{:<35}"
+                    .format("Capturing packets for {}s".format((str(params.duration))))):
         time.sleep(1)
 
     # Show progress bar of getting thread results
@@ -171,22 +171,22 @@ def capture(params, sub=None):
         _test_csv_writer = csv.DictWriter(test_csv, dialect="unix", fieldnames=_meta_csv_fieldnames)
         _test_csv_writer.writeheader()
         _test_csv_data = {_meta_csv_fieldnames[0]: params.test,
-                         _meta_csv_fieldnames[1]: _capture_path,
-                         _meta_csv_fieldnames[2]: params.iface,
-                         _meta_csv_fieldnames[3]: params.duration,
-                         _meta_csv_fieldnames[4]: _avg_lat,
-                         _meta_csv_fieldnames[5]: _avg_lon,
-                         _meta_csv_fieldnames[6]: _avg_alt,
-                         _meta_csv_fieldnames[7]: _avg_lat_err,
-                         _meta_csv_fieldnames[8]: _avg_lon_err,
-                         _meta_csv_fieldnames[9]: _avg_alt_err,
-                         _meta_csv_fieldnames[10]: loop_start_time,
-                         _meta_csv_fieldnames[11]: loop_stop_time,
-                         _meta_csv_fieldnames[12]: params.degrees,
-                         _meta_csv_fieldnames[13]: params.bearing,
-                         _meta_csv_fieldnames[14]: _capture_file_pcap,
-                         _meta_csv_fieldnames[15]: _capture_file_gps,
-                         _meta_csv_fieldnames[16]: _output_csv_gps}
+                          _meta_csv_fieldnames[1]: _capture_path,
+                          _meta_csv_fieldnames[2]: params.iface,
+                          _meta_csv_fieldnames[3]: params.duration,
+                          _meta_csv_fieldnames[4]: _avg_lat,
+                          _meta_csv_fieldnames[5]: _avg_lon,
+                          _meta_csv_fieldnames[6]: _avg_alt,
+                          _meta_csv_fieldnames[7]: _avg_lat_err,
+                          _meta_csv_fieldnames[8]: _avg_lon_err,
+                          _meta_csv_fieldnames[9]: _avg_alt_err,
+                          _meta_csv_fieldnames[10]: loop_start_time,
+                          _meta_csv_fieldnames[11]: loop_stop_time,
+                          _meta_csv_fieldnames[12]: params.degrees,
+                          _meta_csv_fieldnames[13]: params.bearing,
+                          _meta_csv_fieldnames[14]: _capture_file_pcap,
+                          _meta_csv_fieldnames[15]: _capture_file_gps,
+                          _meta_csv_fieldnames[16]: _output_csv_gps}
         _test_csv_writer.writerow(_test_csv_data)
 
     # Show progress bar of joining threads
@@ -286,7 +286,7 @@ def process_capture(path, meta):
 
 def process_directory(limit=sys.maxsize):
     """
-    Process an entire directory - will search subdirectories for required files and process them if not already processed
+    Process entire directory - will search subdirectories for required files and process them if not already processed
 
     :param limit: limit on the number of directories to process
     :type limit: int
@@ -398,12 +398,12 @@ class CaptureThread(threading.Thread):
         self._output = output
 
         # Check for required system packages
-        self._packet_cap_util = "dumpcap"
+        self._pcap_util = "dumpcap"
         self._pcap_params = ['-i', self._iface, '-B', '12', '-q']
 
-        if shutil.which(self._packet_cap_util) is None:
+        if shutil.which(self._pcap_util) is None:
             module_logger.error("Required packet capture system tool '{}' is not installed"
-                                .format(self._packet_cap_util))
+                                .format(self._pcap_util))
             exit(1)
 
         # Ensure we are in monitor mode
@@ -415,7 +415,8 @@ class CaptureThread(threading.Thread):
     def run(self):
         module_logger.info("Executing capture thread")
 
-        command = [self._packet_cap_util] + self._pcap_params + ["-a", "duration:{}".format(self._duration + 1), "-w", self._output]
+        _dur = self._duration + 1
+        command = [self._pcap_util] + self._pcap_params + ["-a", "duration:{}".format(_dur), "-w", self._output]
 
         # Wait for synchronization signal
         self._initialize_flag.wait()

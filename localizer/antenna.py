@@ -19,7 +19,7 @@ sleep = time.sleep
 
 # Try to perform GPIO setup, but if not available print error and continue
 try:
-    import RPi.GPIO as GPIO
+    from RPi import GPIO
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(PUL_min, GPIO.OUT, initial=GPIO.LOW)
     GPIO.setup(DIR_min, GPIO.OUT)
@@ -32,9 +32,11 @@ try:
 except RuntimeError as e:
     module_logger.error(e)
     module_logger.info("Setting up dummy functions 'cleanup' and 'output'")
+
     def cleanup():
         pass
-    def output(a, b):
+
+    def output(*_):
         pass
 
 
@@ -134,7 +136,7 @@ class AntennaStepperThread(threading.Thread):
 
 
 @atexit.register
-def cleanup_GPIO():
+def cleanup_gpio():
     """
     Cleanup - ensure GPIO is cleaned up properly
     """
