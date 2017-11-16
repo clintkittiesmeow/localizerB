@@ -343,17 +343,17 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
         print("Found {} batches".format(len(_filenames)))
 
-        _batches = []
         # Import tests from each batch
+        _count = 0
         for batch in tqdm(_filenames):
             try:
                 _name, _passes, _tests = BatchShell._parse_batch(batch)
-                _batches.append((_name, _passes, _tests))
+                self._batches.append((_name, _passes, _tests))
+                _count += 1
             except ValueError as e:
                 logger.error(e)
 
-        logging.info("Imported {} batches".format(len(_batches)))
-        self._batches.extend(_batches)
+        logging.info("Imported {} batches".format(_count))
 
     def do_capture(self, _):
         """
@@ -409,7 +409,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         Clear all batches
         """
 
-        self._batches = None
+        self._batches = []
 
     @staticmethod
     def _parse_batch(file):
