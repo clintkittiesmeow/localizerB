@@ -48,7 +48,7 @@ def set_interface_mode(iface, mode):
     try:
         interfaces = get_interfaces()
         if iface not in interfaces:
-            raise ValueError("Interface {} is not a valid interface".format(iface))
+            raise ValueError("Interface {} is not a valid interface; {}".format(iface, interfaces.keys()))
 
         module_logger.info("Enabling {} mode on {}".format(mode, iface))
         call(['ifconfig', iface, 'down'], stdout=localizer.DN, stderr=localizer.DN)
