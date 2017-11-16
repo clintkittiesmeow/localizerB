@@ -408,9 +408,9 @@ class CaptureThread(threading.Thread):
 
         # Ensure we are in monitor mode
         from localizer import wifi
-        if wifi.get_interface_mode(self._iface) != "monitor":
+
+        while wifi.get_interface_mode(self._iface) != "monitor":
             wifi.set_interface_mode(self._iface, "monitor")
-        assert(wifi.get_interface_mode(self._iface) == "monitor")
 
     def run(self):
         module_logger.info("Executing capture thread")
