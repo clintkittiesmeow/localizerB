@@ -4,7 +4,7 @@ import re
 import shutil
 import threading
 import time
-from subprocess import call, run, Popen, PIPE, CalledProcessError
+from subprocess import call, run, PIPE, CalledProcessError
 
 from tqdm import tqdm
 
@@ -95,12 +95,12 @@ def get_interfaces():
     """
 
     try:
-        proc = Popen(['iwconfig'], stdout=PIPE, stderr=localizer.DN)
+        proc = run(['iwconfig'], stdout=PIPE, stderr=localizer.DN)
 
         # Loop through all the lines and build a dictionary of interfaces
         interfaces = {}
         current_interface = None
-        for line in proc.communicate()[0].split(b'\n'):
+        for line in proc.stdout.split(b'\n'):
             line = line.decode().rstrip()
             if len(line.strip()) == 0:
                 continue                                                # Continue on blank lines
