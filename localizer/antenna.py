@@ -24,7 +24,7 @@ try:
     GPIO.setup(PUL_min, GPIO.OUT, initial=GPIO.LOW)
     GPIO.setup(DIR_min, GPIO.OUT)
     GPIO.setup(ENA_min, GPIO.OUT)
-    GPIO.output(ENA_min, GPIO.LOW)
+    GPIO.output(ENA_min, GPIO.HIGH)
     GPIO.setwarnings(False)
 
     cleanup = GPIO.cleanup
