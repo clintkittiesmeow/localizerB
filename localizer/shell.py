@@ -9,7 +9,7 @@ from distutils.util import strtobool
 from tqdm import tqdm
 
 import localizer
-from localizer import wifi, capture, params
+from localizer import wifi, capture, params, antenna
 
 logger = logging.getLogger('localizer')
 _file_logger = logging.FileHandler('localizer.log')
@@ -383,9 +383,11 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         """
 
         for _name, _passes, _tests in self._batches:
-            print("Batch: {}; {} tests, {} passes each".format(_name, len(_tests), _passes))
             for test in _tests:
                 print(test)
+            print("Batch: {}; {} tests, {} passes each".format(_name, len(_tests), _passes))
+            print("Estimated total runtime: {}".format(self._calculate_runtime()))
+
 
     def do_pause(self, args):
         """
@@ -410,6 +412,20 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         """
 
         self._batches = []
+
+    def _calculate_runtime(self):
+        """
+        Calculate an estimated runtime for the imported tests
+        :return: Estimated runtime
+        :rtype: int
+        """
+
+        _time = 0
+        for _, _passes, _tests in self._batches:
+            for test in _tests:
+                _test_overhead = antenna.RESET_RATE + 2
+                _time += ((test.duration * _passes) + _test_overhead)
+        return _time
 
     @staticmethod
     def _parse_batch(file):
