@@ -20,7 +20,8 @@ _capture_suffixes = {"nmea": ".nmea",
                      "pcap": ".pcapng",
                      "meta": "-test.csv",
                      "coords": "-gps.csv"}
-_processed_suffix = "-results.csv"
+_results_suffix = "-results.csv"
+TEST_SUFFIX = "-test.conf"
 
 _meta_csv_fieldnames = ['name',
                         'path',
@@ -358,7 +359,7 @@ def _check_capture_processed(path):
     """
 
     files = os.listdir(path)
-    if any(file.endswith(_processed_suffix) for file in files):
+    if any(file.endswith(_results_suffix) for file in files):
         return True
 
     return False

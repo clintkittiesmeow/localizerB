@@ -11,12 +11,12 @@ from tqdm import tqdm
 import localizer
 from localizer import wifi, capture, params, antenna
 
-logger = logging.getLogger('localizer')
-_file_logger = logging.FileHandler('localizer.log')
-_file_logger.setLevel(logging.DEBUG)
-_file_logger.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s: %(message)s'))
-logger.addHandler(_file_logger)
-logger.info("****STARTING LOCALIZER****")
+module_logger = logging.getLogger('localizer')
+_file_handler = logging.FileHandler('localizer.log')
+_file_handler.setLevel(logging.DEBUG)
+_file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s: %(message)s'))
+module_logger.addHandler(_file_handler)
+module_logger.info("****STARTING LOCALIZER****")
 
 
 # Helper class for exit functionality
@@ -26,7 +26,7 @@ class ExitCmd(Cmd):
         return True
 
     def onecmd(self, line):
-        r = super(ExitCmd, self).onecmd(line)
+        r = super().onecmd(line)
         if r and (self.can_exit() or input('exit anyway ? (yes/no):') == 'yes'):
             return True
         return False
@@ -71,7 +71,7 @@ class DebugCmd(Cmd, object):
                 val = strtobool(args[0])
                 localizer.set_debug(val)
             except ValueError:
-                logger.error("Could not understand debug value '{}'".format(args[0]))
+                module_logger.error("Could not understand debug value '{}'".format(args[0]))
 
         print("Debug is {}".format("ENABLED" if localizer.debug else "DISABLED"))
 
@@ -94,7 +94,7 @@ class DirCmd(Cmd, object, metaclass=abc.ABCMeta):
                 localizer.set_working_dir(args[0])
 
             except ValueError as e:
-                logger.error(e)
+                module_logger.error(e)
             finally:
                 self._update_prompt()
 
@@ -118,13 +118,13 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             exit(1)
 
         # WiFi
-        logger.info("Initializing WiFi")
+        module_logger.info("Initializing WiFi")
         # Set interface to first
         iface = wifi.get_first_interface()
         if iface is not None:
             self._params.iface = iface
         else:
-            logger.error("No valid wireless interface available")
+            module_logger.error("No valid wireless interface available")
             exit(1)
 
         # Start the command loop - these need to be the last lines in the initializer
@@ -146,7 +146,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 val = strtobool(args[0])
                 localizer.set_serve(val)
             except ValueError:
-                logger.error("Could not understand serve value '{}'".format(args[0]))
+                module_logger.error("Could not understand serve value '{}'".format(args[0]))
 
         print("Serve is {}".format("ENABLED" if localizer.serve else "DISABLED"))
         if localizer.serve:
@@ -176,7 +176,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 _processed = capture.process_directory(num_dirs)
 
             except ValueError:
-                logger.error("This command accepts an optional limit parameter. {} is not an int > 0".format(args[0]))
+                module_logger.error("This command accepts an optional limit parameter. {} is not an int > 0".format(args[0]))
 
         else:
             _processed = capture.process_directory()
@@ -193,7 +193,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
         split_args = args.split()
         if len(split_args) < 1:
-            logger.error("You must provide at least one argument".format(args))
+            module_logger.error("You must provide at least one argument".format(args))
         elif len(split_args) == 1:
             if split_args[0] == "iface":
                 iface = wifi.get_first_interface()
@@ -201,9 +201,9 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 if iface is not None:
                     self._params.iface = iface
                 else:
-                    logger.error("There are no wireless interfaces available.")
+                    module_logger.error("There are no wireless interfaces available.")
             else:
-                logger.error("Parameters require a value".format(split_args[0]))
+                module_logger.error("Parameters require a value".format(split_args[0]))
         elif split_args[0] in params.Params.VALID_PARAMS:
             try:
                 param = split_args[0]
@@ -227,9 +227,9 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 print("Parameter '{}' set to '{}'".format(param, value))
 
             except ValueError as e:
-                logger.error(e)
+                module_logger.error(e)
         else:
-            logger.error("Invalid parameter '{}'".format(split_args[0]))
+            module_logger.error("Invalid parameter '{}'".format(split_args[0]))
 
         self._update_prompt()
 
@@ -249,7 +249,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             elif split_args[0] == "params":
                 print(str(self._params))
             else:
-                logger.error("Unknown parameter '{}'".format(split_args[0]))
+                module_logger.error("Unknown parameter '{}'".format(split_args[0]))
         else:
             pprint.pprint(wifi.get_interfaces())
             print(str(self._params))
@@ -262,12 +262,12 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         """
 
         if not self._params.validate():
-            logger.error("You must set 'iface' and 'duration' parameters first")
+            module_logger.error("You must set 'iface' and 'duration' parameters first")
         else:
             # Shutdown http server if it's on
             localizer.shutdown_httpd()
 
-            logger.info("Starting capture")
+            module_logger.info("Starting capture")
             _capture_path, _meta = capture.capture(self._params)
 
             if self._params.process:
@@ -305,10 +305,8 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
 class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
-    TEST_SUFFIX = "-test.conf"
-
     def __init__(self):
-        super(BatchShell, self).__init__()
+        super().__init__()
 
         self._pause = True
         self._batches = []
@@ -330,7 +328,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         args = args.split()
         # Check for provided filename
         if len(args):
-            _filenames.append(args[0] + BatchShell.TEST_SUFFIX)
+            _filenames.append(args[0] + capture.TEST_SUFFIX)
             if not os.path.isfile(_filenames[0]):
                 print("Invalid file specified: {}".format(args[0]))
                 return
@@ -338,7 +336,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             # Get list of valid test batches in current directory
             _files = next(os.walk('.'))[2]
             for file in _files:
-                if file.endswith(BatchShell.TEST_SUFFIX):
+                if file.endswith(capture.TEST_SUFFIX):
                     _filenames.append(file)
 
         print("Found {} batches".format(len(_filenames)))
@@ -351,7 +349,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 self._batches.append((_name, _passes, _tests))
                 _count += 1
             except ValueError as e:
-                logger.error(e)
+                module_logger.error(e)
 
         logging.info("Imported {} batches".format(_count))
 
@@ -388,7 +386,6 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             print("Batch: {}; {} tests, {} passes each".format(_name, len(_tests), _passes))
             print("Estimated total runtime: {}".format(self._calculate_runtime()))
 
-
     def do_pause(self, args):
         """
         Pause between tests to allow for antenna calibration
@@ -402,7 +399,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             try:
                 self._pause = strtobool(args[0])
             except ValueError:
-                logger.error("Could not understand pause value '{}'".format(args[0]))
+                module_logger.error("Could not understand pause value '{}'".format(args[0]))
 
         print("Pause is {}".format("ENABLED" if self._pause else "DISABLED"))
 
@@ -438,7 +435,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         :rtype: (str, int, list)
         """
 
-        _name = file[:file.find(BatchShell.TEST_SUFFIX)]
+        _name = file[:file.find(capture.TEST_SUFFIX)]
         _tests = []
 
         config = configparser.ConfigParser()
@@ -456,7 +453,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             test = BatchShell._build_test(config[section])
             _tests.append(test)
 
-        logger.info("Imported batch {} with {} tests ({} passes".format(_name, len(_tests), _passes))
+        module_logger.info("Imported batch {} with {} tests ({} passes".format(_name, len(_tests), _passes))
         return _name, _passes, _tests
 
     @staticmethod

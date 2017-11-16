@@ -25,11 +25,10 @@ GR = '\033[37m'  # gray
 
 # Set up logging
 logger = logging.getLogger('localizer')
-logger.setLevel(logging.DEBUG)
-_console_logger = logging.StreamHandler()
-_console_logger.setLevel(logging.ERROR)
-_console_logger.setFormatter(logging.Formatter('%(name)s - %(levelname)s: %(message)s'))
-logger.addHandler(_console_logger)
+_console_handler = logging.StreamHandler()
+_console_handler.setLevel(logging.ERROR)
+_console_handler.setFormatter(logging.Formatter('%(name)s - %(levelname)s: %(message)s'))
+logger.addHandler(_console_handler)
 
 # Set up web server
 PORT = 80
@@ -112,10 +111,6 @@ def set_working_dir(path):
         raise ValueError("Invalid directory '{}'".format(path))
 
 
-def get_working_dir():
-    return _working_dir
-
-
 # A quiet implementation of SimpleHTTPRequestHandler
 class QuietSimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
@@ -127,9 +122,9 @@ def set_debug(value):
     debug = value
     if logger is not None:
         if debug:
-            _console_logger.setLevel(logging.DEBUG)
+            _console_handler.setLevel(logging.DEBUG)
         else:
-            _console_logger.setLevel(logging.ERROR)
+            _console_handler.setLevel(logging.ERROR)
 
         logger.info("Debug set to {}".format(value))
 
