@@ -1,5 +1,6 @@
 import abc
 import configparser
+import datetime
 import logging
 import os
 import pprint
@@ -383,8 +384,10 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         for _name, _passes, _tests in self._batches:
             for test in _tests:
                 print(test)
+
             print("Batch: {}; {} tests, {} passes each".format(_name, len(_tests), _passes))
-            print("Estimated total runtime: {}".format(self._calculate_runtime()))
+
+        print("Estimated total runtime: {:0>8}".format(datetime.timedelta(seconds=self._calculate_runtime())))
 
     def do_pause(self, args):
         """
