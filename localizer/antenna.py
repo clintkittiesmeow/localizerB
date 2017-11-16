@@ -6,6 +6,9 @@ import time
 module_logger = logging.getLogger('localizer.antenna')
 
 
+# Constants
+RESET_RATE = 3
+
 # Set up GPIO
 PUL_min = 21
 DIR_min = 20
@@ -80,7 +83,7 @@ class AntennaStepperThread(threading.Thread):
 
         if self._reset:
             module_logger.info("Resetting antenna position")
-            _reset_rate = 3
+            _reset_rate = RESET_RATE
             _duration = _reset_rate * (self._degrees / 360)
             self.rotate(self._degrees*-1, _duration)
 
