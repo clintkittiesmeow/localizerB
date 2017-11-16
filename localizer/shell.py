@@ -9,7 +9,7 @@ from distutils.util import strtobool
 from tqdm import tqdm
 
 import localizer
-from localizer import wifi, capture, params, antenna
+from localizer import wifi, capture, params
 
 logger = logging.getLogger('localizer')
 _file_logger = logging.FileHandler('localizer.log')
@@ -268,9 +268,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             localizer.shutdown_httpd()
 
             logger.info("Starting capture")
-            antenna.antenna_set_en(True)
             _capture_path, _meta = capture.capture(self._params)
-            antenna.antenna_set_en(False)
 
             if self._params.process:
                 capture.process_capture(_capture_path, _meta)
@@ -370,7 +368,6 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 _total += len(_tests)*_passes
 
             print("Starting batch of {} tests".format(_total))
-            antenna.antenna_set_en(True)
             _curr = 0
             for _, _passes, _tests in self._batches:
                 _len_pass = len(str(_passes))
@@ -379,7 +376,6 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                         print(localizer.R + "Test {:>4}/{}".format(_curr, _total) + localizer.W)
                         capture.capture(test, str(p).zfill(_len_pass))
                         _curr += 1
-            antenna.antenna_set_en(False)
 
     def do_show(self, _):
         """
