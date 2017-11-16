@@ -8,12 +8,14 @@ from tqdm import trange
 import localizer
 from localizer.antenna import AntennaStepperThread
 
+_
 
 class TestAntenna(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         # Speed up tests
+
         localizer.params.duration = 5
 
     def test_1_params_valid(self):

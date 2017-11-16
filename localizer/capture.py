@@ -123,8 +123,8 @@ def capture(params, sub=None):
         pbar.update()
         pbar.refresh()
 
-    module_logger.info("Waiting for GPS 3D fix")
     # Ensure that gps has a 3D fix
+    module_logger.info("Waiting for GPS 3D fix")
     try:
         _time_waited = 0
         while gpsd.get_current().mode != 3:
@@ -425,18 +425,28 @@ class CaptureThread(threading.Thread):
         proc = Popen(command, stdout=PIPE, stderr=PIPE)
 
         # Wait for process to output "File: ..." to stderr and then set flag for other threads
-        _timeout_start = time.time()
-        curr_line = ""
-        while not curr_line.startswith("File:"):
-            curr_line = proc.stderr.readline().decode()
-            if time.time() > _timeout_start + 5:
-                raise TimeoutError("Capture process did not start as expected: {}/{}".format(curr_line, command))
-            else:
+        try:
+            _delay_notified = False
+            _timeout_start = time.time()
+            curr_line = ""
+            while not curr_line.startswith("File:"):
+                if time.time() > _timeout_start + 5 and not _delay_notified:
+                    module_logger.error(
+                        "Waiting over 5s for {} to start... Press Ctrl-C to cancel".format(self._pcap_util))
+                    _delay_notified = True
+                curr_line = proc.stderr.readline().decode()
                 time.sleep(.1)
+        except KeyboardInterrupt:
+            print('\nCapture canceled.')
+            return False
+
+        # Tell other threads to start
         self._start_flag.set()
 
+        # Wait for the dumpcap process to finish
         proc.wait()
         _end_time = time.time()
+
         module_logger.info("Captured packets for {:.2f}s (expected {}s)".format(_end_time-_start_time, self._duration))
 
         import re
