@@ -41,7 +41,6 @@ def main():
     elif args.process:
         from localizer import process
         _processed = process.process_directory()
-        print("Processed {} captures".format(_processed))
 
 
 if __name__ == '__main__':
