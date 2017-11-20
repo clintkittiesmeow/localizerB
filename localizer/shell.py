@@ -157,8 +157,8 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
     def do_process(args):
         """
         Process the results of all tests in the current working directory.
-        This command will look in each subdirectory (one deep) of the current path for unprocessed tests
-        It looks for valid *-test.csv, etc, and process the files to build a *.results.csv
+        This command will look in each subdirectory of the current path for unprocessed tests
+        It looks for valid *-test.csv, etc, and processes the files to build *.results.csv
 
         :param args: Process provided number of dirs. If blank, all valid subdirectories will be searched.
         :type args: str
@@ -269,7 +269,11 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             localizer.shutdown_httpd()
 
             module_logger.info("Starting capture")
-            _capture_path, _meta = capture.capture(self._params)
+            try:
+                _capture_path, _meta = capture.capture(self._params)
+            except RuntimeError as e:
+                module_logger.error(e)
+                return
 
             if self._params.process:
                 capture.process_capture(_capture_path, _meta)

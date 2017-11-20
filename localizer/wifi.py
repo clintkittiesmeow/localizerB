@@ -249,9 +249,10 @@ def cleanup():
     Cleanup - ensure all devices are no longer in monitor mode
     """
 
-    module_logger.info("Cleaning up all monitored interfaces")
     ifaces = get_interfaces()
+    ifaces_to_cleanup = [iface for iface in ifaces if ifaces[iface]["mode"] == "monitor"]
 
-    for iface in tqdm(ifaces, desc="{:<35}".format("Restoring ifaces to managed mode")):
-        if ifaces[iface]["mode"] == "monitor":
+    if ifaces_to_cleanup:
+        module_logger.info("Cleaning up all monitored interfaces")
+        for iface in tqdm(ifaces_to_cleanup, desc="{:<35}".format("Restoring ifaces to managed mode")):
             set_interface_mode(iface, "managed")

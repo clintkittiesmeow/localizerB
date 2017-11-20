@@ -26,7 +26,7 @@ GR = '\033[37m'  # gray
 # Set up logging
 logger = logging.getLogger('localizer')
 _console_handler = logging.StreamHandler()
-_console_handler.setLevel(logging.ERROR)
+_console_handler.setLevel(logging.WARNING)
 _console_handler.setFormatter(logging.Formatter('%(name)s - %(levelname)s: %(message)s'))
 logger.addHandler(_console_handler)
 
@@ -124,7 +124,7 @@ def set_debug(value):
         if debug:
             _console_handler.setLevel(logging.DEBUG)
         else:
-            _console_handler.setLevel(logging.ERROR)
+            _console_handler.setLevel(logging.WARNING)
 
         logger.info("Debug set to {}".format(value))
 
