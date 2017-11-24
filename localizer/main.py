@@ -21,6 +21,8 @@ def main():
     me_group.add_argument("-p", "--process",
                         help="Process the files in the current directory, or a provided working directory (-w)",
                         action="store_true")
+    parser.add_argument("-m", "--macs",
+                        help="If processing, a file containing mac addresses to filter on")
     me_group.add_argument("-s", "--shell",
                         help="Start the localizer shell",
                         action="store_true")
@@ -40,7 +42,7 @@ def main():
         LocalizerShell()
     elif args.process:
         from localizer import process
-        _processed = process.process_directory()
+        _processed = process.process_directory(args.macs)
 
 
 if __name__ == '__main__':

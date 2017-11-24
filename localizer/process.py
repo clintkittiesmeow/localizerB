@@ -10,9 +10,11 @@ from tqdm import tqdm
 from localizer import capture
 
 module_logger = logging.getLogger('localizer.capture')
-
+_macs = []
 
 def process_capture(meta_tuple):
+
+    global _macs
 
     # Unpack tuple - required for tqdm imap
     path, meta_file = meta_tuple
@@ -58,8 +60,10 @@ def process_capture(meta_tuple):
 
                 try:
                     # Get time, bssid & db from packet
-                    ptime = packet.sniff_time.timestamp()
                     pbssid = packet.wlan.bssid
+                    if _macs and pbssid not in _macs:
+                        continue
+                    ptime = packet.sniff_time.timestamp()
                     pssi = int(packet.radiotap.dbm_antsignal)
                     pchannel = int(packet.radiotap.channel_freq)
                 except AttributeError:
@@ -159,7 +163,7 @@ def _get_capture_meta(files):
     return None
 
 
-def process_directory():
+def process_directory(macs=None):
     """
     Process entire directory - will search subdirectories for required files and process them if not already processed
 
@@ -168,6 +172,11 @@ def process_directory():
     :return: The number of directories processed
     :rtype: int
     """
+
+    # Read in macs
+    if macs:
+        global _macs
+        _macs = [mac.strip() for mac in open(macs) if mac.strip()]
 
     _tasks = []
 
