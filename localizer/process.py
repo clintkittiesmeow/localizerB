@@ -25,9 +25,9 @@ def process_capture(meta_tuple):
     _beacon_failures = 0
 
     # Fix any absolute paths in meta
-    meta[capture._meta_csv_fieldnames[14]] = os.path.split(meta[capture._meta_csv_fieldnames[14]])[1]
-    meta[capture._meta_csv_fieldnames[15]] = os.path.split(meta[capture._meta_csv_fieldnames[15]])[1]
-    meta[capture._meta_csv_fieldnames[16]] = os.path.split(meta[capture._meta_csv_fieldnames[16]])[1]
+    meta[capture.meta_csv_fieldnames[16]] = os.path.split(meta[capture.meta_csv_fieldnames[16]])[1]
+    meta[capture.meta_csv_fieldnames[17]] = os.path.split(meta[capture.meta_csv_fieldnames[17]])[1]
+    meta[capture.meta_csv_fieldnames[18]] = os.path.split(meta[capture.meta_csv_fieldnames[18]])[1]
 
     _results_path = os.path.join(path, time.strftime('%Y%m%d-%H-%M-%S') + "-results" + ".csv")
 
@@ -38,10 +38,23 @@ def process_capture(meta_tuple):
         with open(_results_path, 'w', newline='') as results_csv:
 
             # Read pcapng
-            _pcap = os.path.join(path, meta[capture._meta_csv_fieldnames[14]])
+            _pcap = os.path.join(path, meta[capture.meta_csv_fieldnames[16]])
             packets = pyshark.FileCapture(_pcap, display_filter='wlan[0] == 0x80')
-            fieldnames = ['timestamp', 'bssid', 'ssi', 'channel', 'bearing',
-                          'lat', 'lon', 'alt', 'lat_err', 'lon_error', 'alt_error']
+            fieldnames = ['test',
+                          'pass',
+                          'duration',
+                          'hop-rate',
+                          'timestamp',
+                          'bssid',
+                          'ssi',
+                          'channel',
+                          'bearing',
+                          'lat',
+                          'lon',
+                          'alt',
+                          'lat_err',
+                          'lon_error',
+                          'alt_error']
             results_csv_writer = csv.DictWriter(results_csv, dialect="unix", fieldnames=fieldnames)
             results_csv_writer.writeheader()
 
@@ -71,17 +84,22 @@ def process_capture(meta_tuple):
                 pbearing = pprogress * float(meta["degrees"]) + float(meta["bearing"])
 
                 results_csv_writer.writerow({
-                    fieldnames[0]: ptime,
-                    fieldnames[1]: pbssid,
-                    fieldnames[2]: pssi,
-                    fieldnames[3]: pchannel,
-                    fieldnames[4]: pbearing,
-                    fieldnames[5]: meta["pos_lat"],
-                    fieldnames[6]: meta["pos_lon"],
-                    fieldnames[7]: meta["pos_alt"],
-                    fieldnames[8]: meta["pos_lat_err"],
-                    fieldnames[9]: meta["pos_lon_err"],
-                    fieldnames[10]: meta["pos_alt_err"], })
+                    fieldnames[0]: capture.meta_csv_fieldnames[0],
+                    fieldnames[1]: capture.meta_csv_fieldnames[1],
+                    fieldnames[2]: capture.meta_csv_fieldnames[4],
+                    fieldnames[3]: capture.meta_csv_fieldnames[5],
+                    fieldnames[4]: ptime,
+                    fieldnames[5]: pbssid,
+                    fieldnames[6]: pssi,
+                    fieldnames[7]: pchannel,
+                    fieldnames[8]: pbearing,
+                    fieldnames[9]: capture.meta_csv_fieldnames[6],
+                    fieldnames[10]: capture.meta_csv_fieldnames[7],
+                    fieldnames[11]: capture.meta_csv_fieldnames[8],
+                    fieldnames[12]: capture.meta_csv_fieldnames[9],
+                    fieldnames[13]: capture.meta_csv_fieldnames[10],
+                    fieldnames[14]: capture.meta_csv_fieldnames[11]
+                })
 
                 _beacon_count += 1
 

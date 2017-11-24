@@ -21,32 +21,34 @@ _capture_suffixes = {"nmea": ".nmea",
 _results_suffix = "-results.csv"
 TEST_SUFFIX = "-test.conf"
 
-_meta_csv_fieldnames = ['name',
-                        'path',
-                        'iface',
-                        'duration',
-                        'pos_lat',
-                        'pos_lon',
-                        'pos_alt',
-                        'pos_lat_err',
-                        'pos_lon_err',
-                        'pos_alt_err',
-                        'start',
-                        'end',
-                        'degrees',
-                        'bearing',
-                        'pcap',
-                        'nmea',
-                        'coords']
+meta_csv_fieldnames = ['name',
+                       'pass',
+                       'path',
+                       'iface',
+                       'duration',
+                       'hop_int',
+                       'pos_lat',
+                       'pos_lon',
+                       'pos_alt',
+                       'pos_lat_err',
+                       'pos_lon_err',
+                       'pos_alt_err',
+                       'start',
+                       'end',
+                       'degrees',
+                       'bearing',
+                       'pcap',
+                       'nmea',
+                       'coords']
 
 
-def capture(params, sub=None):
+def capture(params, pass_num=None):
     # Set up working folder
     os.umask(0)
     _capture_path = params.test
 
-    if sub is not None:
-        _capture_path = os.path.join(_capture_path, sub)
+    if pass_num is not None:
+        _capture_path = os.path.join(_capture_path, pass_num)
 
     try:
         os.makedirs(_capture_path, exist_ok=True)
@@ -164,25 +166,27 @@ def capture(params, sub=None):
     # Write test metadata to disk
     module_logger.info("Writing test metadata to csv")
     with open(os.path.join(_capture_path, _output_csv_test), 'w', newline='') as test_csv:
-        _test_csv_writer = csv.DictWriter(test_csv, dialect="unix", fieldnames=_meta_csv_fieldnames)
+        _test_csv_writer = csv.DictWriter(test_csv, dialect="unix", fieldnames=meta_csv_fieldnames)
         _test_csv_writer.writeheader()
-        _test_csv_data = {_meta_csv_fieldnames[0]: params.test,
-                          _meta_csv_fieldnames[1]: _capture_path,
-                          _meta_csv_fieldnames[2]: params.iface,
-                          _meta_csv_fieldnames[3]: params.duration,
-                          _meta_csv_fieldnames[4]: _avg_lat,
-                          _meta_csv_fieldnames[5]: _avg_lon,
-                          _meta_csv_fieldnames[6]: _avg_alt,
-                          _meta_csv_fieldnames[7]: _avg_lat_err,
-                          _meta_csv_fieldnames[8]: _avg_lon_err,
-                          _meta_csv_fieldnames[9]: _avg_alt_err,
-                          _meta_csv_fieldnames[10]: loop_start_time,
-                          _meta_csv_fieldnames[11]: loop_stop_time,
-                          _meta_csv_fieldnames[12]: params.degrees,
-                          _meta_csv_fieldnames[13]: params.bearing,
-                          _meta_csv_fieldnames[14]: _capture_file_pcap,
-                          _meta_csv_fieldnames[15]: _capture_file_gps,
-                          _meta_csv_fieldnames[16]: _output_csv_gps}
+        _test_csv_data = {meta_csv_fieldnames[0]: params.test,
+                          meta_csv_fieldnames[1]: pass_num,
+                          meta_csv_fieldnames[2]: _capture_path,
+                          meta_csv_fieldnames[3]: params.iface,
+                          meta_csv_fieldnames[4]: params.duration,
+                          meta_csv_fieldnames[5]: params.hop_int,
+                          meta_csv_fieldnames[6]: _avg_lat,
+                          meta_csv_fieldnames[7]: _avg_lon,
+                          meta_csv_fieldnames[8]: _avg_alt,
+                          meta_csv_fieldnames[9]: _avg_lat_err,
+                          meta_csv_fieldnames[10]: _avg_lon_err,
+                          meta_csv_fieldnames[11]: _avg_alt_err,
+                          meta_csv_fieldnames[12]: loop_start_time,
+                          meta_csv_fieldnames[13]: loop_stop_time,
+                          meta_csv_fieldnames[14]: params.degrees,
+                          meta_csv_fieldnames[15]: params.bearing,
+                          meta_csv_fieldnames[16]: _capture_file_pcap,
+                          meta_csv_fieldnames[17]: _capture_file_gps,
+                          meta_csv_fieldnames[18]: _output_csv_gps}
         _test_csv_writer.writerow(_test_csv_data)
 
     # Show progress bar of joining threads
