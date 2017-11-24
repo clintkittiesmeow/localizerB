@@ -1,2 +1,0 @@
-"name","path","iface","duration","pos_lat","pos_lon","pos_alt","pos_lat_err","pos_lon_err","pos_alt_err","start","end","degrees","bearing","pcap","nmea","coords"
-"discovery-duration-30","/capture/discovery-duration-30/11","wlan0","30","39.78243385149998","-84.08250189223331","334.8016666666666","0.0","0.0","0.0","1510789727.0653245","1510789757.0630796","360.0","0.0","/capture/discovery-duration-30/11/20171115-18-48-45.pcapng","/capture/discovery-duration-30/11/20171115-18-48-45.nmea","/capture/discovery-duration-30/11/20171115-18-48-45-gps.csv"
