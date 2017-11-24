@@ -6,7 +6,7 @@ from multiprocessing import Pool
 from tqdm import tqdm
 
 from ..capture import meta_csv_fieldnames
-from ..process import _check_capture_processed, _check_capture_dir, _get_capture_meta
+from ..process import _check_capture_dir, _get_capture_meta
 
 
 def fix_meta(file):
@@ -35,6 +35,20 @@ def fix_meta(file):
             except (ValueError, TypeError):
                 pass
 
+    # Fix paths
+    _path = os.path.split(meta[meta_csv_fieldnames[16]])
+    if _path[0]:
+        meta[meta_csv_fieldnames[16]] = _path[1]
+        _change_flag = True
+    _path = os.path.split(meta[meta_csv_fieldnames[17]])
+    if _path[0]:
+        meta[meta_csv_fieldnames[17]] = _path[1]
+        _change_flag = True
+    _path = os.path.split(meta[meta_csv_fieldnames[18]])
+    if _path[0]:
+        meta[meta_csv_fieldnames[18]] = _path[1]
+        _change_flag = True
+
     # Write changes to file
     if not arguments.dry and _change_flag:
         with open(file, 'w', newline='') as test_csv:
@@ -59,7 +73,7 @@ def process_directory():
 
     # Walk through each subdirectory of working directory
     for root, dirs, files in os.walk(os.getcwd()):
-        if not (_check_capture_dir(files) and _check_capture_processed(files)):
+        if not _check_capture_dir(files):
             continue
         else:
             # Add meta file to list

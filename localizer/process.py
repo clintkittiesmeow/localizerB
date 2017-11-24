@@ -24,11 +24,6 @@ def process_capture(meta_tuple):
     _beacon_count = 0
     _beacon_failures = 0
 
-    # Fix any absolute paths in meta
-    meta[capture.meta_csv_fieldnames[16]] = os.path.split(meta[capture.meta_csv_fieldnames[16]])[1]
-    meta[capture.meta_csv_fieldnames[17]] = os.path.split(meta[capture.meta_csv_fieldnames[17]])[1]
-    meta[capture.meta_csv_fieldnames[18]] = os.path.split(meta[capture.meta_csv_fieldnames[18]])[1]
-
     _results_path = os.path.join(path, time.strftime('%Y%m%d-%H-%M-%S') + "-results" + ".csv")
 
     module_logger.info("Processing capture (meta: {})".format(str(meta)))
@@ -84,21 +79,21 @@ def process_capture(meta_tuple):
                 pbearing = pprogress * float(meta["degrees"]) + float(meta["bearing"])
 
                 results_csv_writer.writerow({
-                    fieldnames[0]: capture.meta_csv_fieldnames[0],
-                    fieldnames[1]: capture.meta_csv_fieldnames[1],
-                    fieldnames[2]: capture.meta_csv_fieldnames[4],
-                    fieldnames[3]: capture.meta_csv_fieldnames[5],
+                    fieldnames[0]: meta[capture.meta_csv_fieldnames[0]],
+                    fieldnames[1]: meta[capture.meta_csv_fieldnames[1]],
+                    fieldnames[2]: meta[capture.meta_csv_fieldnames[4]],
+                    fieldnames[3]: meta[capture.meta_csv_fieldnames[5]],
                     fieldnames[4]: ptime,
                     fieldnames[5]: pbssid,
                     fieldnames[6]: pssi,
                     fieldnames[7]: pchannel,
                     fieldnames[8]: pbearing,
-                    fieldnames[9]: capture.meta_csv_fieldnames[6],
-                    fieldnames[10]: capture.meta_csv_fieldnames[7],
-                    fieldnames[11]: capture.meta_csv_fieldnames[8],
-                    fieldnames[12]: capture.meta_csv_fieldnames[9],
-                    fieldnames[13]: capture.meta_csv_fieldnames[10],
-                    fieldnames[14]: capture.meta_csv_fieldnames[11]
+                    fieldnames[9]: meta[capture.meta_csv_fieldnames[6]],
+                    fieldnames[10]: meta[capture.meta_csv_fieldnames[7]],
+                    fieldnames[11]: meta[capture.meta_csv_fieldnames[8]],
+                    fieldnames[12]: meta[capture.meta_csv_fieldnames[9]],
+                    fieldnames[13]: meta[capture.meta_csv_fieldnames[10]],
+                    fieldnames[14]: meta[capture.meta_csv_fieldnames[11]]
                 })
 
                 _beacon_count += 1
