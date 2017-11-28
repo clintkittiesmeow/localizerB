@@ -16,9 +16,9 @@ class AntennaStepperThread(threading.Thread):
     microsteps_per_step = 32
     degrees_per_microstep = degrees_per_step / microsteps_per_step
     # Set up GPIO
-    PUL_min = 21
-    DIR_min = 20
-    ENA_min = 16
+    PUL_min = 17
+    DIR_min = 27
+    ENA_min = 22
 
     # Try to perform GPIO setup, but if not available print error and continue
     try:
