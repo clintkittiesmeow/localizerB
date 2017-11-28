@@ -9,6 +9,7 @@ tests(ismember(tests,{'.','..'})) = [];
 data = cell(length(tests),1);
 
 % Import each test into a table
+addpath ../scripts/
 for test = 1:length(tests)
     dirstring = fullfile(pwd, tests(test), '**', '*-results.csv');
     % Build list of results.csv files to import
@@ -20,35 +21,60 @@ for test = 1:length(tests)
         data{test} = [data{test}; importfile(pass.name, 2)];
     end
 end
+rmpath ../scripts/
 
 % List of mac addresses
 macs = splitlines(strtrim(fileread('../../macs')));
 
+% Get durations from tests
+durations = zeros(length(tests),1);
+for test = 1:length(tests)
+    durations(test) = mean(data{test}.duration);
+end
+
+% Get hop rate from tests
+hop_rates = zeros(length(tests),1);
+for test = 1:length(tests)
+    hop_rates(test) = mean(data{test}.hoprate);
+end
+
+
 % Run through each test and generate metrics
 % Metrics:
 %   Rate = beacons/second
-%   Coverage = % of bssids detected <- large penalty per bssid
-results = cell(length(tests),1);
+%   BSSI Rate = beacons/second for each bssi
+result_rate = zeros(length(tests),30);
+result_bssi = zeros(length(tests),length(macs),30);
 for test = 1:length(tests)
     
     % Discover how many passes were done for this test
     passes = unique(data{test}.pass);
-    % Generate an array to store our results in
-    results{test} = zeros(length(passes),2);
+
     % Step through each pass of each test
     for pass = passes'
         pass_data = data{test}(data{test}.pass == pass,:);
-        results{test}(pass+1,1) = height(pass_data) / data{test}.duration(1);
-        coverage = 0;
+        result_rate(test,pass+1) = height(pass_data) / durations(test);
         
-        pass_macs = unique(data{test}.bssid);
-        for mac = macs'
-            if any(pass_macs == mac)
-                coverage = coverage + 1;
-            end
-        end
-        
-        % Convert results to a percentage
-        results{test}(pass+1,2) = coverage / length(macs);
+        result_bssi(test,:,pass+1) = countcats(data{test}(data{test}.pass == pass,:).bssid);
     end
+    
+    % Calculate
 end
+
+figure
+
+% Display rate data
+subplot(2,1,1);
+boxplot(result_rate', 'Labels', hop_rates);
+xlabel('Hop Rate');
+ylabel('Beacons per second');
+
+% Display bssi rate
+means = mean(result_bssi, 3);
+subplot(2,1,2);
+%s = summary(data{test});
+% labels = char(s.bssid.Categories);
+bar(bsxfun(@rdivide, means', durations'));
+xlabel('BSSI');
+ylabel('Beacons per second');
+
