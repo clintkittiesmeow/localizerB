@@ -1,4 +1,4 @@
-function results = importfile(filename, startRow, endRow)
+function results = importfile(filename, startRow, endRow, macorder)
 %IMPORTFILE Import numeric data from a text file as a matrix.
 %   RESULTS2 = IMPORTFILE(FILENAME) Reads data from text file FILENAME for
 %   the default selection.
@@ -101,7 +101,7 @@ results.pass = cell2mat(rawNumericColumns(:, 1));
 results.duration = cell2mat(rawNumericColumns(:, 2));
 results.hoprate = cell2mat(rawNumericColumns(:, 3));
 results.timestamp = cell2mat(rawNumericColumns(:, 4));
-results.bssid = categorical(rawStringColumns(:, 2));
+results.bssid = categorical(rawStringColumns(:, 2), macorder, 'Ordinal', true);
 results.ssi = cell2mat(rawNumericColumns(:, 5));
 results.channel = cell2mat(rawNumericColumns(:, 6));
 results.bearing = cell2mat(rawNumericColumns(:, 7));
