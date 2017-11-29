@@ -476,53 +476,53 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         """
 
         try:
-            if section['iface']:
+            if 'iface' in section:
                 _iface = section['iface']
-            elif meta['iface']:
+            elif 'iface' in meta:
                 _iface = meta['iface']
             else:
                 _iface = wifi.get_first_interface()
                 if not _iface:
                     raise ValueError("No valid interface provided or available on system")
 
-            if section['duration']:
+            if 'duration' in section:
                 _duration = section['duration']
-            elif meta['duration']:
+            elif 'duration' in meta:
                 _duration = meta['duration']
             else:
                 raise ValueError("No valid duration")
 
-            if section['degrees']:
+            if 'degrees' in section:
                 _degrees = section['degrees']
-            elif meta['degrees']:
+            elif 'degrees' in meta:
                 _degrees = meta['degrees']
             else:
                 raise ValueError("No valid degrees")
 
-            if section['bearing']:
+            if 'bearing' in section:
                 _bearing = section['bearing']
-            elif meta['bearing']:
+            elif 'bearing' in meta:
                 _bearing = meta['bearing']
             else:
                 raise ValueError("No valid bearing")
 
-            if section['hop_int']:
+            if 'hop_int' in section:
                 _hop_int = section['hop_int']
-            elif meta['hop_int']:
+            elif 'hop_int' in meta:
                 _hop_int = meta['hop_int']
             else:
                 raise ValueError("No valid hop_int")
 
-            if section['test']:
+            if 'test' in section:
                 _test = section['test']
-            elif meta['test']:
+            elif 'test' in meta:
                 _test = meta['test']
             else:
                 raise ValueError("No valid test")
 
-            if section['process']:
+            if 'process' in section:
                 _process = section['process']
-            elif meta['process']:
+            elif 'process' in meta:
                 _process = meta['process']
             else:
                 raise ValueError("No valid process")

@@ -21,7 +21,7 @@ def _initialize():
         module_logger.warning("Required system tool 'gpsd' is not installed")
         return False
     if shutil.which("gpspipe") is None:
-        module_logger.warning("Required system tool 'gpspipe' is not installed")
+        module_logger.warning("Required system tool 'gpspipe' is not installed. On Debian systems it is found in the package 'gpsd-clients'")
         return False
     gpsd.connect()
 
