@@ -457,14 +457,15 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             if section == 'meta':
                 continue
 
-            test = BatchShell._build_test(config[section])
-            _tests.append(test)
+            test = BatchShell._build_test(config[section], config['meta'])
+            if test:
+                _tests.append(test)
 
-        module_logger.info("Imported batch {} with {} tests ({} passes".format(_name, len(_tests), _passes))
+        module_logger.info("Imported {}/{} tests from {} batch ({} passes".format(len(_tests), len(config.sections()) - 1, _name, _passes))
         return _name, _passes, _tests
 
     @staticmethod
-    def _build_test(section):
+    def _build_test(section, meta):
         """
         Use a dictionary from configparser to build a test object
 
@@ -474,19 +475,67 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         :rtype: Params()
         """
 
-        _iface = section['iface'] if section['iface'] else wifi.get_first_interface()
-        _duration = section['duration']
-        _degrees = section['degrees']
-        _bearing = section['bearing']
-        _hop_int = section['hop_int']
-        _test = section['test']
-        _process = section['process']
+        try:
+            if section['iface']:
+                _iface = section['iface']
+            elif meta['iface']:
+                _iface = meta['iface']
+            else:
+                _iface = wifi.get_first_interface()
+                if not _iface:
+                    raise ValueError("No valid interface provided or available on system")
 
-        test = localizer.params.Params(_iface, _duration, _degrees, _bearing, _hop_int, _test, _process)
-        # Validate iface
-        test.iface = _iface
+            if section['duration']:
+                _duration = section['duration']
+            elif meta['duration']:
+                _duration = meta['duration']
+            else:
+                raise ValueError("No valid duration")
 
-        return test
+            if section['degrees']:
+                _degrees = section['degrees']
+            elif meta['degrees']:
+                _degrees = meta['degrees']
+            else:
+                raise ValueError("No valid degrees")
+
+            if section['bearing']:
+                _bearing = section['bearing']
+            elif meta['bearing']:
+                _bearing = meta['bearing']
+            else:
+                raise ValueError("No valid bearing")
+
+            if section['hop_int']:
+                _hop_int = section['hop_int']
+            elif meta['hop_int']:
+                _hop_int = meta['hop_int']
+            else:
+                raise ValueError("No valid hop_int")
+
+            if section['test']:
+                _test = section['test']
+            elif meta['test']:
+                _test = meta['test']
+            else:
+                raise ValueError("No valid test")
+
+            if section['process']:
+                _process = section['process']
+            elif meta['process']:
+                _process = meta['process']
+            else:
+                raise ValueError("No valid process")
+
+            test = localizer.params.Params(_iface, _duration, _degrees, _bearing, _hop_int, _test, _process)
+            # Validate iface
+            test.iface = _iface
+
+            return test
+
+        except ValueError as e:
+            logging.warning(e)
+            return None
 
     def _update_prompt(self):
         self.prompt = localizer.GR + os.getcwd() + localizer.W + ":" + localizer.G + "batch" + localizer.W + "> "
