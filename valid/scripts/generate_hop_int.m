@@ -26,7 +26,6 @@ function [coprimes] = generate_hop_int(start_num, end_num)
     set(gca, 'XTickLabel', keys(coprimes));
     set(gca, 'XTickLabelRotation', 45)
     xticks(cell2mat(keys(coprimes)))
-    text(double(cell2mat(keys(coprimes))), double(ones(1,length(coprimes))+.1), string(cell2mat(values(coprimes))))
     ylim([0 2]);
 end
 
