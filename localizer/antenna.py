@@ -20,21 +20,13 @@ ENA_min = 22
 
 
 # Try to perform GPIO setup, but if not available print error and continue
-def cleanup():
-    pass
-
-
-def output(*_):
-    pass
-
-
 try:
     from RPi import GPIO
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(PUL_min, GPIO.OUT, initial=GPIO.LOW)
     GPIO.setup(DIR_min, GPIO.OUT)
-    GPIO.setup(ENA_min, GPIO.OUT)
-    GPIO.output(ENA_min, GPIO.HIGH)
+    GPIO.setup(ENA_min, GPIO.OUT, initial=GPIO.HIGH)
+    module_logger.debug("Setting motor enable pin high")
     GPIO.setwarnings(False)
 
     cleanup = GPIO.cleanup
@@ -42,6 +34,12 @@ try:
 except RuntimeError as e:
     module_logger.warning(e)
     module_logger.info("Setting up dummy functions 'cleanup' and 'output'")
+    def cleanup():
+        pass
+
+
+    def output(*_):
+        pass
 
 
 class AntennaStepperThread(threading.Thread):
