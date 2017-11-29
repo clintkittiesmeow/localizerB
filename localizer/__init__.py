@@ -24,11 +24,12 @@ GR = '\033[37m'  # gray
 
 
 # Set up logging
-logger = logging.getLogger('localizer')
+package_logger = logging.getLogger('localizer')
+package_logger.setLevel(logging.DEBUG)
 _console_handler = logging.StreamHandler()
 _console_handler.setLevel(logging.WARNING)
 _console_handler.setFormatter(logging.Formatter('%(name)s - %(levelname)s: %(message)s'))
-logger.addHandler(_console_handler)
+package_logger.addHandler(_console_handler)
 
 # Set up web server
 PORT = 80
@@ -56,7 +57,7 @@ def shutdown_httpd():
     global httpd, httpd_thread
 
     if httpd is not None:
-        logger.info("Shutting down http server")
+        package_logger.info("Shutting down http server")
         httpd.shutdown()
         httpd = None
         httpd_thread.join()
@@ -68,7 +69,7 @@ def start_httpd():
     if httpd is not None or httpd_thread is not None:
         shutdown_httpd()
 
-    logger.info("Starting http server in {}".format(os.getcwd()))
+    package_logger.info("Starting http server in {}".format(os.getcwd()))
     httpd = socketserver.TCPServer(("", PORT), QuietSimpleHTTPRequestHandler)
     httpd_thread = Thread(target=httpd.serve_forever)
     httpd_thread.daemon = True
@@ -120,13 +121,13 @@ class QuietSimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 def set_debug(value):
     global debug, _console_handler
     debug = value
-    if logger is not None:
+    if package_logger is not None:
         if debug:
             _console_handler.setLevel(logging.DEBUG)
         else:
             _console_handler.setLevel(logging.WARNING)
 
-        logger.info("Debug set to {}".format(value))
+        package_logger.info("Debug set to {}".format(value))
 
 
 # /dev/null, send output from programs so they don't print to screen.
