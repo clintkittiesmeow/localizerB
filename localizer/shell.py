@@ -461,7 +461,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             if test:
                 _tests.append(test)
 
-        print("Imported {}/{} tests from {} batch ({} passes".format(len(_tests), len(config.sections()) - 1, _name, _passes))
+        print("Imported {}/{} tests from {} batch ({} passes)".format(len(_tests), len(config.sections()) - 1, _name, _passes))
         return _name, _passes, _tests
 
     @staticmethod
@@ -476,9 +476,9 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         """
 
         try:
-            if 'iface' in section:
+            if 'iface' in section and section['iface']:
                 _iface = section['iface']
-            elif 'iface' in meta:
+            elif 'iface' in meta and meta['iface']:
                 _iface = meta['iface']
             else:
                 _iface = wifi.get_first_interface()
