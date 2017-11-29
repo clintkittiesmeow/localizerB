@@ -19,7 +19,7 @@ IEEE80211bga_intl = IEEE80211bg_intl + IEEE80211a
 TU = 1024/1000000  # 1 TU = 1024 usec https://en.wikipedia.org/wiki/TU_(Time_Unit)
 STD_BEACON_INT = 100*TU
 
-module_logger = logging.getLogger('localizer.wifi')
+module_logger = logging.getLogger(__name__)
 
 # Make sure required system tools are installed
 if shutil.which("iwconfig") is None:

@@ -8,7 +8,7 @@ from subprocess import Popen
 
 import gpsd
 
-module_logger = logging.getLogger('localizer.gps')
+module_logger = logging.getLogger(__name__)
 
 
 # GPS Update frequency - Depends on hardware - eg BU-353-S4 http://usglobalsat.com/store/gpsfacts/bu353s4_gps_facts.html

@@ -12,7 +12,7 @@ from tqdm import tqdm, trange
 
 from localizer import antenna, wifi, gps
 
-module_logger = logging.getLogger('localizer.capture')
+module_logger = logging.getLogger(__name__)
 
 capture_suffixes = {"nmea": ".nmea",
                     "pcap": ".pcapng",

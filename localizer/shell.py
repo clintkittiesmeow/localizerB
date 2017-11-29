@@ -12,7 +12,7 @@ from tqdm import tqdm
 import localizer
 from localizer import wifi, capture, process, params, antenna
 
-module_logger = logging.getLogger('localizer')
+module_logger = logging.getLogger(__name__)
 _file_handler = logging.FileHandler('localizer.log')
 _file_handler.setLevel(logging.DEBUG)
 _file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s: %(message)s'))

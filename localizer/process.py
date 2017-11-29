@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from localizer import capture
 
-module_logger = logging.getLogger('localizer.capture')
+module_logger = logging.getLogger(__name__)
 _macs = []
 
 
