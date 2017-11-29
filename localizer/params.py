@@ -19,6 +19,7 @@ class Params:
                  process=False):
 
         # Default Values
+        self._duration = self._degrees = self._bearing = self._hop_int = self._test = self._process = None
         self._iface = iface
         self.duration = duration
         self.degrees = degrees

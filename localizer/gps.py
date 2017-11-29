@@ -104,7 +104,7 @@ class GPSThread(threading.Thread):
                 _avg_lon += msg.lon
                 _avg_alt += msg.alt
 
-
+                # Retrieve error rates
                 lat_err = None
                 lon_err = None
                 alt_err = None

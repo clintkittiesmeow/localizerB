@@ -14,11 +14,11 @@ from localizer import antenna, wifi, gps
 
 module_logger = logging.getLogger('localizer.capture')
 
-_capture_suffixes = {"nmea": ".nmea",
-                     "pcap": ".pcapng",
-                     "meta": "-test.csv",
-                     "coords": "-gps.csv"}
-_results_suffix = "-results.csv"
+capture_suffixes = {"nmea": ".nmea",
+                    "pcap": ".pcapng",
+                    "meta": "-test.csv",
+                    "coords": "-gps.csv"}
+results_suffix = "-results.csv"
 TEST_SUFFIX = "-test.conf"
 
 meta_csv_fieldnames = ['name',
@@ -63,10 +63,10 @@ def capture(params, pass_num=None):
         raise OSError()
 
     # Create capture file names
-    _capture_file_pcap = time.strftime('%Y%m%d-%H-%M-%S') + _capture_suffixes["pcap"]
-    _capture_file_gps = time.strftime('%Y%m%d-%H-%M-%S') + _capture_suffixes["nmea"]
-    _output_csv_gps = time.strftime('%Y%m%d-%H-%M-%S') + _capture_suffixes["coords"]
-    _output_csv_test = time.strftime('%Y%m%d-%H-%M-%S') + _capture_suffixes["meta"]
+    _capture_file_pcap = time.strftime('%Y%m%d-%H-%M-%S') + capture_suffixes["pcap"]
+    _capture_file_gps = time.strftime('%Y%m%d-%H-%M-%S') + capture_suffixes["nmea"]
+    _output_csv_gps = time.strftime('%Y%m%d-%H-%M-%S') + capture_suffixes["coords"]
+    _output_csv_test = time.strftime('%Y%m%d-%H-%M-%S') + capture_suffixes["meta"]
 
     # Threading sync flag
     _initialize_flag = threading.Event()

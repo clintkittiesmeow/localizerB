@@ -10,7 +10,7 @@ from distutils.util import strtobool
 from tqdm import tqdm
 
 import localizer
-from localizer import wifi, capture, params, antenna
+from localizer import wifi, capture, process, params, antenna
 
 module_logger = logging.getLogger('localizer')
 _file_handler = logging.FileHandler('localizer.log')
@@ -154,33 +154,14 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             print("HTTP serving working dir {} on port :{}".format(os.getcwd(), localizer.PORT))
 
     @staticmethod
-    def do_process(args):
+    def do_process(_):
         """
         Process the results of all tests in the current working directory.
         This command will look in each subdirectory of the current path for unprocessed tests
         It looks for valid *-test.csv, etc, and processes the files to build *.results.csv
-
-        :param args: Process provided number of dirs. If blank, all valid subdirectories will be searched.
-        :type args: str
         """
 
-        _processed = 0
-
-        args = args.split()
-        if len(args) > 0:
-            try:
-                num_dirs = int(args[0])
-
-                if num_dirs <= 0:
-                    raise ValueError()
-
-                _processed = capture.process_directory(num_dirs)
-
-            except ValueError:
-                module_logger.error("This command accepts an optional limit parameter. {} is not an int > 0".format(args[0]))
-
-        else:
-            _processed = capture.process_directory()
+        _processed = process.process_directory()
 
         print("Processed {} captures".format(_processed))
 
@@ -276,7 +257,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 return
 
             if self._params.process:
-                capture.process_capture(_capture_path, _meta)
+                process.process_capture((_capture_path, _meta))
 
             # Restart http server if it is supposed to be on
             if localizer.serve:
@@ -427,7 +408,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         _time = 0
         for _, _passes, _tests in self._batches:
             for test in _tests:
-                _test_overhead = antenna.RESET_RATE + 2
+                _test_overhead = antenna.AntennaStepperThread.RESET_RATE + 2
                 _time += ((test.duration * _passes) + _test_overhead)
         return _time
 

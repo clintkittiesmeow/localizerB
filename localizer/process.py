@@ -12,6 +12,7 @@ from localizer import capture
 module_logger = logging.getLogger('localizer.capture')
 _macs = []
 
+
 def process_capture(meta_tuple):
 
     global _macs
@@ -123,7 +124,7 @@ def _check_capture_dir(files):
     :rtype: bool
     """
 
-    for suffix in capture._capture_suffixes.values():
+    for suffix in capture.capture_suffixes.values():
         if not any(file.endswith(suffix) for file in files):
             return False
 
@@ -140,7 +141,7 @@ def _check_capture_processed(files):
     :rtype: bool
     """
 
-    if any(file.endswith(capture._results_suffix) for file in files):
+    if any(file.endswith(capture.results_suffix) for file in files):
         return True
 
     return False
@@ -157,7 +158,7 @@ def _get_capture_meta(files):
     """
 
     for file in files:
-        if file.endswith(capture._capture_suffixes["meta"]):
+        if file.endswith(capture.capture_suffixes["meta"]):
             return file
 
     return None
@@ -167,8 +168,8 @@ def process_directory(macs=None):
     """
     Process entire directory - will search subdirectories for required files and process them if not already processed
 
-    :param limit: limit on the number of directories to process
-    :type limit: int
+    :param macs: list of mac addresses to filter on
+    :type macs: str
     :return: The number of directories processed
     :rtype: int
     """
