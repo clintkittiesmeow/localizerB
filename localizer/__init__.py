@@ -118,7 +118,7 @@ class QuietSimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 
 def set_debug(value):
-    global debug
+    global debug, _console_handler
     debug = value
     if logger is not None:
         if debug:
