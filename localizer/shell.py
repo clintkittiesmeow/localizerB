@@ -391,7 +391,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
             print("Batch: {}; {} tests, {} passes each".format(_name, len(_tests), _passes))
 
-        print("Estimated total runtime: {:0>8}".format(datetime.timedelta(seconds=self._calculate_runtime())))
+        print("Estimated total runtime: {:0>8}".format(str(datetime.timedelta(seconds=self._calculate_runtime()))))
 
     def do_pause(self, args):
         """
@@ -461,7 +461,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             if test:
                 _tests.append(test)
 
-        module_logger.info("Imported {}/{} tests from {} batch ({} passes".format(len(_tests), len(config.sections()) - 1, _name, _passes))
+        print("Imported {}/{} tests from {} batch ({} passes".format(len(_tests), len(config.sections()) - 1, _name, _passes))
         return _name, _passes, _tests
 
     @staticmethod
@@ -529,12 +529,13 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
             test = localizer.params.Params(_iface, _duration, _degrees, _bearing, _hop_int, _test, _process)
             # Validate iface
+            module_logger.debug("Setting iface {}".format(_iface))
             test.iface = _iface
 
             return test
 
         except ValueError as e:
-            logging.warning(e)
+            module_logger.warning(e)
             return None
 
     def _update_prompt(self):
