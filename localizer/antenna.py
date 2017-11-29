@@ -121,14 +121,14 @@ class AntennaStepperThread(threading.Thread):
             # Calculate remaining time for current loop
             curr_loop = step*wait + loop_start_time
 
-            output(21, 1)
+            output(PUL_min, 1)
 
             # Wait for half the remaining available time in the loop
             remaining = (curr_loop-now())-wait_half
             if remaining > 0:
                 sleep(remaining)
 
-            output(21, 0)
+            output(PUL_min, 0)
 
             # Wait remaining loop time, if any
             remaining = curr_loop - now()
