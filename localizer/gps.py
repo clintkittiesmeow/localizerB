@@ -32,6 +32,8 @@ def _initialize():
         module_logger.warning("GPS device failed to initialize, please make sure that gpsd can see gps data")
         return False
 
+    return True
+
 
 _initialize()
 
