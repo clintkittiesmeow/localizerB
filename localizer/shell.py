@@ -372,7 +372,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
             print("Batch: {}; {} tests, {} passes each".format(_name, len(_tests), _passes))
 
-        print("Estimated total runtime: {:0>8}".format(str(datetime.timedelta(seconds=self._calculate_runtime()))))
+        print("Estimated total runtime: {:0>8}".format(str(self._calculate_runtime())))
 
     def do_pause(self, args):
         """
@@ -410,7 +410,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             for test in _tests:
                 _test_overhead = antenna.RESET_RATE + 2
                 _time += ((test.duration * _passes) + _test_overhead)
-        return _time
+        return datetime.timedelta(seconds=_time)
 
     @staticmethod
     def _parse_batch(file):
