@@ -8,7 +8,7 @@ import localizer
 def main():
 
     parser = argparse.ArgumentParser()
-    me_group = parser.add_mutually_exclusive_group(required=True)
+    me_group = parser.add_mutually_exclusive_group()
     # TODO Implement command line capture and batch
     # group_capture = me_group.add_argument_group('Capture')
     # group_capture.add_argument("-c", "--capture")
