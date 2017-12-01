@@ -14,27 +14,18 @@ degrees_per_step = 360 / steps_per_revolution
 microsteps_per_step = 32
 degrees_per_microstep = degrees_per_step / microsteps_per_step
 # Set up GPIO
-PUL_min = 16
-DIR_min = 20
-ENA_min = 21
+PUL_min = 17
+DIR_min = 27
+ENA_min = 22
 
 
 # Try to perform GPIO setup, but if not available print error and continue
-def cleanup():
-    pass
-
-
-def output(*_):
-    pass
-
-
 try:
     from RPi import GPIO
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(PUL_min, GPIO.OUT, initial=GPIO.LOW)
     GPIO.setup(DIR_min, GPIO.OUT)
-    GPIO.setup(ENA_min, GPIO.OUT)
-    GPIO.output(ENA_min, GPIO.HIGH)
+    GPIO.setup(ENA_min, GPIO.OUT, initial=GPIO.HIGH)
     GPIO.setwarnings(False)
 
     cleanup = GPIO.cleanup
@@ -42,6 +33,12 @@ try:
 except RuntimeError as e:
     module_logger.warning(e)
     module_logger.info("Setting up dummy functions 'cleanup' and 'output'")
+
+    def cleanup():
+        pass
+
+    def output(*_):
+        pass
 
 
 class AntennaStepperThread(threading.Thread):
