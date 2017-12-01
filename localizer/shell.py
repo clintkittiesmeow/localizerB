@@ -408,7 +408,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         _time = 0
         for _, _passes, _tests in self._batches:
             for test in _tests:
-                _test_overhead = antenna.AntennaStepperThread.RESET_RATE + 2
+                _test_overhead = antenna.RESET_RATE + 2
                 _time += ((test.duration * _passes) + _test_overhead)
         return _time
 
