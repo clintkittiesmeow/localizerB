@@ -26,6 +26,9 @@ def main():
     me_group.add_argument("-s", "--shell",
                           help="Start the localizer shell",
                           action="store_true")
+    parser.add_argument("--serve",
+                        help="Serve files from the working directory on port 80. This flag may also be set in the shell",
+                        action="store_true")
     args = parser.parse_args()
 
     localizer.set_debug(args.debug)
@@ -37,12 +40,18 @@ def main():
         print(e)
         exit(1)
 
+    if args.serve:
+        localizer.set_serve(args.serve)
+
     if args.shell:
         from localizer.shell import LocalizerShell
         LocalizerShell()
     elif args.process:
         from localizer import process
         process.process_directory(args.macs)
+    elif args.serve:
+        import socket
+        input("Serving files from {} on {}:80, press any key to exit".format(getcwd(), socket.gethostname()))
 
 
 if __name__ == '__main__':
