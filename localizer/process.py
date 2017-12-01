@@ -177,7 +177,10 @@ def process_directory(macs=None):
     # Read in macs
     if macs:
         global _macs
-        _macs = [mac.strip() for mac in open(macs) if mac.strip()]
+        with open(macs, 'r', newline='') as mac_tsv:
+            csv_reader = csv.DictReader(mac_tsv, dialect="unix", delimiter='\t')
+            for line in csv_reader:
+                _macs.append(line["BSSID"])
 
     _tasks = []
 
