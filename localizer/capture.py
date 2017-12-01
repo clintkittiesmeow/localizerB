@@ -209,7 +209,7 @@ def capture(params, pass_num=None):
         pbar.refresh()
         _capture_thread.join()
 
-    return _capture_path, _test_csv_data
+    return _capture_path, _output_csv_test
 
 
 class CaptureThread(threading.Thread):
