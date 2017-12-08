@@ -30,7 +30,11 @@ def process_capture(meta_tuple):
     _beacon_failures = 0
 
     # Correct bearing to compensate for magnetic declination
-    _declination = WorldMagneticModel().calc_mag_field(meta[capture.meta_csv_fieldnames[6]], meta[capture.meta_csv_fieldnames[7]], date.fromtimestamp(float(meta["start"])))
+    _declination = WorldMagneticModel()\
+        .calc_mag_field(float(meta[capture.meta_csv_fieldnames[6]]),
+                        float(meta[capture.meta_csv_fieldnames[7]]),
+                        date=date.fromtimestamp(float(meta["start"])))\
+        .declination
 
     _results_path = os.path.join(path, time.strftime('%Y%m%d-%H-%M-%S') + "-results" + ".csv")
 
@@ -86,7 +90,7 @@ def process_capture(meta_tuple):
                     pdiff = 0
 
                 pprogress = pdiff / total_time
-                pbearing = pprogress * float(meta["degrees"]) + float(meta["bearing"]) + _declination
+                pbearing = (pprogress * float(meta["degrees"]) + float(meta["bearing"]) + _declination) % 360
 
                 results_csv_writer.writerow({
                     fieldnames[0]: meta[capture.meta_csv_fieldnames[0]],

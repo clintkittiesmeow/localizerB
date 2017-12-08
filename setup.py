@@ -18,13 +18,11 @@ setup(
     url='https://github.com/elBradford/localizer',
     author='Bradford',
     packages=['localizer'],
-    dependency_links=['https://github.com/todd-dembrey/geomag/tarball/master#egg=geomag-1.0'],
     install_requires=[
         'RPi.GPIO',
         'pyshark',
         'gpsd-py3',
         'tqdm',
-        'geomag>=1.0',
     ],
     test_suite='nose.collector',
     tests_require=['nose'],
