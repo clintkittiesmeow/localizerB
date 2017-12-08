@@ -15,7 +15,7 @@ class TestParams(TestCase):
         with self.assertRaises(ValueError):
             params.degrees = "cheese"
         with self.assertRaises(ValueError):
-            params.bearing = "curds"
+            params.bearing_magnetic = "curds"
         with self.assertRaises(ValueError):
             params.hop_int = "hot"
         with self.assertRaises(ValueError):
@@ -27,13 +27,13 @@ class TestParams(TestCase):
         with self.assertRaises(ValueError):
             params.process = "Nuttin"
 
-        params.bearing = -1000
-        self.assertGreaterEqual(params.bearing, 0)
-        self.assertLess(params.bearing, 360)
+        params.bearing_magnetic = -1000
+        self.assertGreaterEqual(params.bearing_magnetic, 0)
+        self.assertLess(params.bearing_magnetic, 360)
 
-        params.bearing = 495
-        self.assertGreaterEqual(params.bearing, 0)
-        self.assertLess(params.bearing, 360)
+        params.bearing_magnetic = 495
+        self.assertGreaterEqual(params.bearing_magnetic, 0)
+        self.assertLess(params.bearing_magnetic, 360)
 
 
 if __name__ == '__main__':

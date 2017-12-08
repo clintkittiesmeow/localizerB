@@ -198,7 +198,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 elif param == "degrees":
                     self._params.degrees = value
                 elif param == "bearing":
-                    self._params.bearing = value
+                    self._params.bearing_magnetic = value
                 elif param == "hop_int":
                     self._params.hop_int = value
                 elif param == "test":

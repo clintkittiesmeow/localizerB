@@ -78,7 +78,7 @@ if __name__ == "__main__":
     try:
         localizer.params.duration = arguments.duration
         localizer.params.degrees = arguments.degrees
-        localizer.params.bearing = arguments.bearing
+        localizer.params.bearing = arguments.bearing_magnetic
     except ValueError:
         print("Invalid parameters")
         exit(1)

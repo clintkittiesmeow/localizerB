@@ -2,9 +2,11 @@ import csv
 import logging
 import os
 import time
+from datetime import date
 from multiprocessing import Pool
 
 import pyshark
+from geomag import WorldMagneticModel
 from tqdm import tqdm
 
 from localizer import capture
@@ -26,6 +28,9 @@ def process_capture(meta_tuple):
 
     _beacon_count = 0
     _beacon_failures = 0
+
+    # Correct bearing to compensate for magnetic declination
+    _declination = WorldMagneticModel().calc_mag_field(meta[capture.meta_csv_fieldnames[6]], meta[capture.meta_csv_fieldnames[7]], date.fromtimestamp(float(meta["start"])))
 
     _results_path = os.path.join(path, time.strftime('%Y%m%d-%H-%M-%S') + "-results" + ".csv")
 
@@ -81,7 +86,7 @@ def process_capture(meta_tuple):
                     pdiff = 0
 
                 pprogress = pdiff / total_time
-                pbearing = pprogress * float(meta["degrees"]) + float(meta["bearing"])
+                pbearing = pprogress * float(meta["degrees"]) + float(meta["bearing"]) + _declination
 
                 results_csv_writer.writerow({
                     fieldnames[0]: meta[capture.meta_csv_fieldnames[0]],

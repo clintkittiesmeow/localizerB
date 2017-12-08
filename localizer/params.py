@@ -1,5 +1,8 @@
+import datetime
 import time
 from distutils.util import strtobool
+
+from geomag import WorldMagneticModel
 
 import localizer
 from localizer.wifi import STD_BEACON_INT
@@ -23,7 +26,7 @@ class Params:
         self._iface = iface
         self.duration = duration
         self.degrees = degrees
-        self.bearing = bearing
+        self.bearing_magnetic = bearing
         self.hop_int = hop_int
         self.test = test
         self.process = process
@@ -69,17 +72,22 @@ class Params:
             raise ValueError("Invalid degrees: {}; should be a float".format(value))
 
     @property
-    def bearing(self):
+    def bearing_magnetic(self):
         return self._bearing
 
-    @bearing.setter
-    def bearing(self, value):
+    @bearing_magnetic.setter
+    def bearing_magnetic(self, value):
         try:
             if not isinstance(value, float):
                 value = float(value)
             self._bearing = value % 360
         except ValueError:
             raise ValueError("Invalid bearing: {}; should be a float >= 0 and < 360".format(value))
+
+    def bearing_true(self, lat, lon, alt=0, date=datetime.date.today()):
+        wmm = WorldMagneticModel()
+        declination = wmm.calc_mag_field(lat, lon, alt, date).declination
+        return self._bearing + declination
 
     @property
     def hop_int(self):
@@ -121,7 +129,7 @@ class Params:
     def validate_antenna(self):
         return self.duration is not None and \
                self.degrees is not None and \
-               self.bearing is not None
+               self.bearing_magnetic is not None
 
     def validate_gps(self):
         return self.duration is not None

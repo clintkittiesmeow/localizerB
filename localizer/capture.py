@@ -94,7 +94,7 @@ def capture(params, pass_num=None):
                                                        _start_flag,
                                                        params.duration,
                                                        params.degrees,
-                                                       params.bearing,
+                                                       params.bearing_magnetic,
                                                        True)
         _antenna_thread.start()
         pbar.update()
@@ -183,7 +183,7 @@ def capture(params, pass_num=None):
                           meta_csv_fieldnames[12]: loop_start_time,
                           meta_csv_fieldnames[13]: loop_stop_time,
                           meta_csv_fieldnames[14]: params.degrees,
-                          meta_csv_fieldnames[15]: params.bearing,
+                          meta_csv_fieldnames[15]: params.bearing_magnetic,
                           meta_csv_fieldnames[16]: _capture_file_pcap,
                           meta_csv_fieldnames[17]: _capture_file_gps,
                           meta_csv_fieldnames[18]: _output_csv_gps}
