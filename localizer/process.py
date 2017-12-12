@@ -20,7 +20,7 @@ def process_capture(meta_tuple):
     global _macs
 
     # Unpack tuple - required for tqdm imap
-    path, meta_file = meta_tuple
+    path, meta_file, clockwise = meta_tuple
 
     with open(os.path.join(path, meta_file), 'rt') as meta_csv:
         _meta_reader = csv.DictReader(meta_csv, dialect='unix')
@@ -90,8 +90,10 @@ def process_capture(meta_tuple):
                 if pdiff <= 0:
                     pdiff = 0
 
+                cw = 1 if clockwise else -1
+
                 pprogress = pdiff / total_time
-                pbearing = (pprogress * float(meta["degrees"]) + float(meta["bearing"])) % 360
+                pbearing = (cw * pprogress * float(meta["degrees"]) + float(meta["bearing"])) % 360
                 pbearing_true = (pbearing + _declination) % 360
 
                 results_csv_writer.writerow({
@@ -176,12 +178,14 @@ def _get_capture_meta(files):
     return None
 
 
-def process_directory(macs=None):
+def process_directory(macs=None, clockwise=True):
     """
     Process entire directory - will search subdirectories for required files and process them if not already processed
 
     :param macs: list of mac addresses to filter on
     :type macs: str
+    :param clockwise: Direction of antenna travel
+    :type clockwise: bool
     :return: The number of directories processed
     :rtype: int
     """
@@ -207,7 +211,7 @@ def process_directory(macs=None):
             # Add meta file to list
             _file = _get_capture_meta(files)
             assert _file is not None
-            _tasks.append((root, _file))
+            _tasks.append((root, _file, clockwise))
 
     print("Found {} unprocessed data sets".format(len(_tasks)))
 

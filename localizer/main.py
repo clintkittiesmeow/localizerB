@@ -9,6 +9,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     me_group = parser.add_mutually_exclusive_group()
+    ccw_me_group = parser.add_mutually_exclusive_group()
     # TODO Implement command line capture and batch
     # group_capture = me_group.add_argument_group('Capture')
     # group_capture.add_argument("-c", "--capture")
@@ -23,6 +24,9 @@ def main():
                           action="store_true")
     parser.add_argument("-m", "--macs",
                         help="If processing, a file containing mac addresses to filter on")
+    parser.add_argument("-ccw",
+                        help="Set this flag if the captures were performed in a counter-clockwise direction",
+                        action="store_true")
     me_group.add_argument("-s", "--shell",
                           help="Start the localizer shell",
                           action="store_true")
@@ -48,7 +52,7 @@ def main():
         LocalizerShell()
     elif args.process:
         from localizer import process
-        process.process_directory(args.macs)
+        process.process_directory(args.macs, not args.ccw)
     elif args.serve:
         import socket
         input("Serving files from {} on {}:80, press any key to exit".format(getcwd(), socket.gethostname()))
