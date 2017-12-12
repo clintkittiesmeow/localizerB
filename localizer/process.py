@@ -56,6 +56,7 @@ def process_capture(meta_tuple):
                           'ssi',
                           'channel',
                           'bearing',
+                          'bearing_true',
                           'lat',
                           'lon',
                           'alt',
@@ -90,7 +91,8 @@ def process_capture(meta_tuple):
                     pdiff = 0
 
                 pprogress = pdiff / total_time
-                pbearing = (pprogress * float(meta["degrees"]) + float(meta["bearing"]) + _declination) % 360
+                pbearing = (pprogress * float(meta["degrees"]) + float(meta["bearing"])) % 360
+                pbearing_true = (pbearing + _declination) % 360
 
                 results_csv_writer.writerow({
                     fieldnames[0]: meta[capture.meta_csv_fieldnames[0]],
@@ -102,12 +104,13 @@ def process_capture(meta_tuple):
                     fieldnames[6]: pssi,
                     fieldnames[7]: pchannel,
                     fieldnames[8]: pbearing,
-                    fieldnames[9]: meta[capture.meta_csv_fieldnames[6]],
-                    fieldnames[10]: meta[capture.meta_csv_fieldnames[7]],
-                    fieldnames[11]: meta[capture.meta_csv_fieldnames[8]],
-                    fieldnames[12]: meta[capture.meta_csv_fieldnames[9]],
-                    fieldnames[13]: meta[capture.meta_csv_fieldnames[10]],
-                    fieldnames[14]: meta[capture.meta_csv_fieldnames[11]]
+                    fieldnames[9]: pbearing_true,
+                    fieldnames[10]: meta[capture.meta_csv_fieldnames[6]],
+                    fieldnames[11]: meta[capture.meta_csv_fieldnames[7]],
+                    fieldnames[12]: meta[capture.meta_csv_fieldnames[8]],
+                    fieldnames[13]: meta[capture.meta_csv_fieldnames[9]],
+                    fieldnames[14]: meta[capture.meta_csv_fieldnames[10]],
+                    fieldnames[15]: meta[capture.meta_csv_fieldnames[11]]
                 })
 
                 _beacon_count += 1
