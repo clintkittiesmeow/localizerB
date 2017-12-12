@@ -101,10 +101,10 @@ class AntennaStepperThread(threading.Thread):
         wait_half = wait/2
 
         if pulses < 0:
-            output(DIR_min, 0)
+            output(DIR_min, 1)
             pulses = -pulses
         else:
-            output(DIR_min, 1)
+            output(DIR_min, 0)
 
         # Optimization https://wiki.python.org/moin/PythonSpeed/PerformanceTips
         now = time.time
