@@ -18,6 +18,8 @@ IEEE80211bga = IEEE80211bg + IEEE80211a
 IEEE80211bga_intl = IEEE80211bg_intl + IEEE80211a
 TU = 1024/1000000  # 1 TU = 1024 usec https://en.wikipedia.org/wiki/TU_(Time_Unit)
 STD_BEACON_INT = 100*TU
+OPTIMAL_BEACON_INT = 179*TU
+STD_CHANNEL_DISTANCE = 1
 
 module_logger = logging.getLogger(__name__)
 
@@ -172,20 +174,20 @@ def set_channel(iface, channel):
     :param iface: Interface to set the channel
     :type iface: str
     :param channel: Channel number to set the interface to
-    :type channel: int
+    :type channel: str
     :return: True for success, False for failure
     :rtype: bool
     """
 
     try:
-        call(['iwconfig', iface, 'channel', str(channel)], stdout=localizer.DN, stderr=localizer.DN)
+        call(['iwconfig', iface, 'channel', channel], stdout=localizer.DN, stderr=localizer.DN)
         return True
     except CalledProcessError:
         return False
 
 
 class ChannelHopper(threading.Thread):
-    def __init__(self, event_flag, iface, duration, interval, response_queue=None, channels=IEEE80211bg):
+    def __init__(self, event_flag, iface, duration, interval=OPTIMAL_BEACON_INT, response_queue=None, distance=STD_CHANNEL_DISTANCE, channels=IEEE80211bg):
         """
         Wait for commands on the queue and asynchronously change channels of wireless interface with specified timing.
 
@@ -202,27 +204,23 @@ class ChannelHopper(threading.Thread):
         self._iface = iface
         self._duration = duration
         self._interval = interval
+        self._distance = distance
         self._response_queue = response_queue
         self._channels = channels
-        self._channel = 1
 
         # Ensure we are in monitor mode
         if get_interface_mode(self._iface) != "monitor":
             set_interface_mode(self._iface, "monitor")
         assert(get_interface_mode(self._iface) == "monitor")
 
-        # Set channel to first channel
-        set_channel(iface, self._channel)
-
     def run(self):
 
         _chan_len = len(self._channels)
-        _chan = self._channel
-        _channels = []
 
-        # Build local channel list for speed
-        for c in self._channels:
-            _channels.append(str(c))
+        # Build local channel str list for speed
+        _channels = [str(channel) for channel in self._channels]
+        _chan = 0                   # Initial channel position - will cycle through all in _channels
+        set_channel(self._iface, _channels[_chan]) # Set channel to first channel
 
         # Wait for synchronization signal
         self._event_flag.wait()
@@ -231,10 +229,9 @@ class ChannelHopper(threading.Thread):
         _start_time = time.time()
         _stop_time = _start_time + self._duration
         while _stop_time > time.time():
-            _chan = (_chan + 1) % _chan_len
-            _chan_str = _channels[_chan]
-            call(['iwconfig', self._iface, 'channel', _chan_str], stdout=localizer.DN, stderr=localizer.DN)
             time.sleep(self._interval)
+            _chan = (_chan + self._distance) % _chan_len
+            set_channel(self._iface, _channels[_chan])
 
         _end_time = time.time()
 

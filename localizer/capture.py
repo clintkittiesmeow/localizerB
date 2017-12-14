@@ -116,7 +116,7 @@ def capture(params, pass_num=None):
         _channel_hopper_thread = wifi.ChannelHopper(_start_flag,
                                                     params.iface,
                                                     params.duration,
-                                                    params.hop_int)
+                                                    params.hop_int, distance=params.hop_dist)
         _channel_hopper_thread.start()
         pbar.update()
         pbar.refresh()

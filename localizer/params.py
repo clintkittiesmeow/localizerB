@@ -5,29 +5,31 @@ from distutils.util import strtobool
 from geomag import WorldMagneticModel
 
 import localizer
-from localizer.wifi import STD_BEACON_INT
+from localizer.wifi import OPTIMAL_BEACON_INT, STD_CHANNEL_DISTANCE
 
 
 class Params:
 
-    VALID_PARAMS = ["iface", "duration", "degrees", "bearing", "hop_int", "test", "process"]
+    VALID_PARAMS = ["iface", "duration", "degrees", "bearing", "hop_int", "hop_dist", "test", "process"]
 
     def __init__(self,
                  iface=None,
                  duration=15,
                  degrees=360.0,
                  bearing=0.0,
-                 hop_int=STD_BEACON_INT,
+                 hop_int=OPTIMAL_BEACON_INT,
+                 hop_dist=STD_CHANNEL_DISTANCE,
                  test=time.strftime('%Y%m%d-%H-%M-%S'),
                  process=False):
 
         # Default Values
-        self._duration = self._degrees = self._bearing = self._hop_int = self._test = self._process = None
+        self._duration = self._degrees = self._bearing = self._hop_int = self._hop_dist = self._test = self._process = None
         self._iface = iface
         self.duration = duration
         self.degrees = degrees
         self.bearing_magnetic = bearing
         self.hop_int = hop_int
+        self.hop_dist = hop_dist
         self.test = test
         self.process = process
 
@@ -103,6 +105,21 @@ class Params:
             self._hop_int = value
         except ValueError:
             raise ValueError("Invalid hop interval: {}; should be a float > 0".format(value))
+
+    @property
+    def hop_dist(self):
+        return self._hop_dist
+
+    @hop_dist.setter
+    def hop_dist(self, value):
+        try:
+            if not isinstance(value, int):
+                value = int(value)
+            if value <= 0:
+                raise ValueError()
+            self._hop_dist = value
+        except ValueError:
+            raise ValueError("Invalid hop distance: {}; should be an integer > 0".format(value))
 
     @property
     def test(self):

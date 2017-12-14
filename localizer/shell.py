@@ -492,7 +492,14 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             elif 'hop_int' in meta:
                 _hop_int = meta['hop_int']
             else:
-                raise ValueError("No valid hop_int")
+                _hop_int = wifi.OPTIMAL_BEACON_INT
+
+            if 'hop_dist' in section:
+                _hop_dist = section['hop_dist']
+            elif 'hop_dist' in meta:
+                _hop_dist = meta['hop_dist']
+            else:
+                _hop_dist = wifi.STD_CHANNEL_DISTANCE
 
             if 'test' in section:
                 _test = section['test']
@@ -508,7 +515,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             else:
                 raise ValueError("No valid process")
 
-            test = localizer.params.Params(_iface, _duration, _degrees, _bearing, _hop_int, _test, _process)
+            test = localizer.params.Params(_iface, _duration, _degrees, _bearing, _hop_int, _hop_dist, _test, _process)
             # Validate iface
             module_logger.debug("Setting iface {}".format(_iface))
             test.iface = _iface
