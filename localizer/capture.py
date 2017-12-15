@@ -12,6 +12,8 @@ from tqdm import tqdm, trange
 
 from localizer import antenna, wifi, gps
 
+OPTIMAL_CAPTURE_DURATION = 20
+
 module_logger = logging.getLogger(__name__)
 
 capture_suffixes = {"nmea": ".nmea",
@@ -160,6 +162,7 @@ def capture(params, pass_num=None):
         pbar.refresh()
         _capture_result_cap, _capture_result_drop = _capture_response_queue.get()
         module_logger.info("Captured {} packets ({} dropped)".format(_capture_result_cap, _capture_result_drop))
+        # Spawn
 
     print("Writing metadata...")
 
