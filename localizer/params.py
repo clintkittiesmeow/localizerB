@@ -1,6 +1,5 @@
 import datetime
 import time
-from distutils.util import strtobool
 
 from geomag import WorldMagneticModel
 
@@ -19,11 +18,10 @@ class Params:
                  bearing=0.0,
                  hop_int=OPTIMAL_BEACON_INT,
                  hop_dist=STD_CHANNEL_DISTANCE,
-                 test=time.strftime('%Y%m%d-%H-%M-%S'),
-                 process=False):
+                 test=time.strftime('%Y%m%d-%H-%M-%S')):
 
         # Default Values
-        self._duration = self._degrees = self._bearing = self._hop_int = self._hop_dist = self._test = self._process = None
+        self._duration = self._degrees = self._bearing = self._hop_int = self._hop_dist = self._test = None
         self._iface = iface
         self.duration = duration
         self.degrees = degrees
@@ -31,7 +29,6 @@ class Params:
         self.hop_int = hop_int
         self.hop_dist = hop_dist
         self.test = test
-        self.process = process
 
     @property
     def iface(self):
@@ -128,19 +125,6 @@ class Params:
     @test.setter
     def test(self, value):
         self._test = str(value)
-
-    @property
-    def process(self):
-        return self._process
-
-    @process.setter
-    def process(self, value):
-        if isinstance(value, bool):
-            self._process = value
-        elif isinstance(value, str):
-            self._process = strtobool(value)
-        else:
-            raise ValueError("Cannot parse '{}' as a bool".format(str(value)))
 
     # Validation functions
     def validate_antenna(self):

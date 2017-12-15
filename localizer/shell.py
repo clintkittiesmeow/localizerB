@@ -112,6 +112,8 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
         self._modules = ["antenna", "gps", "capture", "wifi"]
         self._params = params.Params()
+        self._params.process = True
+        self._aps = {}
 
         # Ensure we have root
         if os.getuid() != 0:
@@ -238,6 +240,16 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             print("Debug is {}".format(localizer.debug))
             print("HTTP server is {}".format(localizer.serve))
 
+    def do_list(self, args):
+        """
+        List any detected access points, their bearing, and whether they have been scanned
+        """
+
+        if self._aps:
+            pprint.print(self._aps)
+        else:
+            print("No detected aps, or scan hasn't been performed")
+
     def do_capture(self, _):
         """
         Start the capture with the needed parameters set
@@ -252,12 +264,12 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             module_logger.info("Starting capture")
             try:
                 _capture_path, _meta = capture.capture(self._params)
+                _, _results, _ = process.process_capture((_meta, True, True, []))
             except RuntimeError as e:
                 module_logger.error(e)
                 return
 
-            if self._params.process:
-                process.process_capture((_capture_path, _meta))
+
 
             # Restart http server if it is supposed to be on
             if localizer.serve:
@@ -471,7 +483,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             elif 'duration' in meta:
                 _duration = meta['duration']
             else:
-                raise ValueError("No valid duration")
+                _duration = capture.OPTIMAL_CAPTURE_DURATION
 
             if 'degrees' in section:
                 _degrees = section['degrees']
@@ -513,7 +525,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             elif 'process' in meta:
                 _process = meta['process']
             else:
-                raise ValueError("No valid process")
+                _process = False
 
             test = localizer.params.Params(_iface, _duration, _degrees, _bearing, _hop_int, _hop_dist, _test, _process)
             # Validate iface

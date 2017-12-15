@@ -23,6 +23,7 @@ setup(
         'pyshark',
         'gpsd-py3',
         'tqdm',
+        'pandas',
     ],
     test_suite='nose.collector',
     tests_require=['nose'],
