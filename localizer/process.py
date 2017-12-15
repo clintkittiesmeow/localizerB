@@ -24,6 +24,7 @@ def process_capture(meta_tuple):
     :return: (_beacon_count, _results_path):
     """
     import pandas as pd
+    from dateutil import parser
 
     # Unpack tuple - required for tqdm imap
     _meta_file, _write_to_disk, _clockwise, _macs = meta_tuple
@@ -68,9 +69,17 @@ def process_capture(meta_tuple):
                 'alt_error']
     _rows = []
     _pcap = os.path.join(_path, meta[capture.meta_csv_fieldnames[16]])
-    packets = pyshark.FileCapture(_pcap, display_filter='wlan[0] == 0x80', keep_packets=False)
 
-    print(2)
+    # Build filter string
+    _filter = 'wlan[0] == 0x80'
+    if _macs:
+        _mac_string = ' and ('
+        _mac_strings = ['wlan.bssid == ' + mac for mac in _macs]
+        _mac_string += ' or '.join(_mac_strings)
+        _mac_string += ')'
+        _filter += _mac_string
+
+    packets = pyshark.FileCapture(_pcap, display_filter=_filter, keep_packets=False, use_json=True)
 
     for packet in packets:
 
@@ -79,21 +88,21 @@ def process_capture(meta_tuple):
             pbssid = packet.wlan.bssid
             if _macs and pbssid not in _macs:
                 continue
-            ptime = packet.sniff_time.timestamp()
-            pssid = packet.wlan_mgt.ssid
+            ptime = parser.parse(packet.sniff_timestamp).timestamp()
+            pssid = next((tag.ssid for tag in packet.wlan_mgt.tagged.all.tag if hasattr(tag, 'ssid')), None)
             pssi = int(packet.wlan_radio.signal_dbm) if hasattr(packet.wlan_radio, 'signal_dbm') else int(packet.radiotap.dbm_antsignal)
-            pchannel = int(packet.wlan_radio.channel) if hasattr(packet.wlan_radio, 'channel') else int(packet.radiotap.channel_freq)
+            pchannel = int(packet.wlan_radio.channel) if hasattr(packet.wlan_radio, 'channel') else int(packet.radiotap.channel.freq)
 
             # Determine AP security, if any
-            psecurity = None
-            pencryption = None
-            if hasattr(packet.wlan_mgt, 'wfa_ie_wpa_mcs_version'):
-                psecurity = "WPA" + packet.wlan_mgt.wfa_ie_wpa_mcs_version
-
-                if hasattr(packet.wlan_mgt, 'wfa_ie_wpa_ucs_type'):
-                    pencryption = "TKIP"
-            elif hasattr(packet.wlan, 'wep_icv'):
-                psecurity = "WEP"
+            # WPA
+            try:
+                psecurity = next(("WPA" for tag in packet.wlan_mgt.tagged.all.tag if hasattr(tag, 'wfa.ie.wpa.version')), None)
+                # WEP
+                if not psecurity:
+                    psecurity = "WEP" if packet.wlan_mgt.fixed.all.capabilities_tree.has_field("privacy") else None
+                pencryption = None
+            except TypeError as e:
+                print("{}: {}".format(e, str(packet)))
 
         except AttributeError:
             _beacon_failures += 1
