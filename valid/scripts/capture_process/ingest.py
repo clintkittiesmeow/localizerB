@@ -8,19 +8,18 @@ Created on Thu Dec  7 16:25:58 2017
 
 import pandas as pd
 import numpy as np
-import os
 import gps
-import aps
+import capmap
+import os
 import matplotlib.pyplot as plt
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 from tqdm import tqdm, tnrange, tqdm_notebook
+from locate import error_methods as error_methods
 
 def setup(directory):
-    global dataframe, tests, access_points, bearings
+    global dataframe
     dataframe = import_captures(directory)   
-    tests = get_test_gps(dataframe, directory)
-    access_points = aps.import_aps('../aps.csv')
-    bearings = load_bearings()
+    capmap.setup(directory, dataframe)
     return dataframe
 
 
@@ -39,102 +38,95 @@ def import_captures(directory):
     
     
 def get_test_gps(dataframe, directory):
-    tests = pd.unique(dataframe["test"])
+    _tests = pd.unique(dataframe["test"])
     results = {'test':[], 'lat':[], 'lon':[]}
-    for test in tests:
+    for test in _tests:
         coord, _ = gps.process_directory(os.path.join(directory, test))
         results['test'].append(test)
         results['lat'].append(coord[0])
         results['lon'].append(coord[1])
     return pd.DataFrame(results)
 
+def compare_errors():
+    
+    global error_methods
+    
+    _results = [pd.DataFrame()]
+
+    cores = max(cpu_count() - 1, 1)
+    
+    print(f"Processing with {cores} cores...")
+    
+    with Pool(processes=cores) as pool:
+        for df in tqdm_notebook(pool.imap_unordered(error, error_methods.keys()), total=len(error_methods), desc="Methods"):
+            _results.append(df)
+     
+    return pd.concat(_results, axis=0)
 
 
-def error(method='naive'):
+def get_set(test='capture-1', test_pass=1, bssid='00:12:17:9f:79:b6'):
+    global dataframe
+    
+    if not capmap.validate_mac(bssid):
+        bssid = capmap.get_bssids_from_names(ap_name)
+    return dataframe[(dataframe['test'] == test) & (dataframe['pass'] == test_pass) & (dataframe['bssid'] == bssid)]
+
+
+def error(method='naive', bearing_name='bearing_true'):
     # Loop through each test/pass and determine the bearing based on maximum mw
     # Return the error rate as the squared degrees from the correct bearing
     
-    global bearings, dataframe, error_methods
+    global dataframe, error_methods
     
     if method not in error_methods:
         print(f"You did not specify a valid method. Available methods: {_methods}")
     
-    _columns = ['test', 'pass', 'bssid', 'error', 'fallbacks']
+    _columns = ['test', 'pass', 'bssid', 'error', 'fallbacks', 'samples']
     _rows = []
     
-    _tests = pd.unique(bearings['test'])
+    _tests = pd.unique(capmap.bearings['test'])
     
-    for test in tqdm_notebook(_tests, desc="Tests", leave=False):
-        _bssids = pd.unique(bearings['bssid'])
+    for test in _tests:
+        _bssids = pd.unique(capmap.bearings['bssid'])
         for bssid in _bssids:
             _df = dataframe[(dataframe.test == test) & (dataframe.bssid == bssid)]
             _passes = pd.unique(_df['pass'])
             for i in _passes:
-                _fallbacks = 0
-                _pass = _df[_df['pass'] == i].filter(['mw', 'bearing_true'])
-                _pass = _pass.rename(columns={'bearing_true': 'deg'}).sort_values('deg')
-                _pass['deg'] = np.round(_pass['deg'])
-                _pass = _pass.set_index('deg').iloc[:,0]
-                _true_bearing = bearings[(bearings['test'] == test) & (bearings['bssid'] == bssid)]['bearing'].values[0]
+                _fallback = False
+                _pass = prep_for_plot(_df[_df['pass'] == i], bearing_name)
+                _samples = len(_pass)
+                _true_bearing = capmap.bearings[(capmap.bearings['test'] == test) & (capmap.bearings['bssid'] == bssid)]['bearing'].values[0]
                 
                 try:
                     _location = error_methods[method](_pass)
                 except ValueError as e:
                     # print(f"Error: couldn't use {method} method, falling back to naive; {e}")
                     _location = error_methods['naive'](_pass)
-                    _fallbacks += 1
+                    _fallback = True
                     
-                _error = np.abs(_location-_true_bearing)
+                _error = (_location-_true_bearing)%360
                 # Reflect modular distance - as error gets larger than 180, it's actually getting closer to truth
                 if np.abs(_error) > 180:
-                    _error = 360 - _error
-                _rows.append([test, i, bssid, _error, _fallbacks])
-        
-    return pd.DataFrame(_rows, columns=_columns)
+                    _error = -((360 - _error) % 360)
+                _rows.append([test, i, bssid, _error, _fallback, _samples])
+    _result = pd.DataFrame(_rows, columns=_columns)
+    _result.loc[:,'method'] = method
+    return _result
 
 
-def compare_errors():
+def prep_for_plot(dataframe, x='bearing_true', y='mw'):
+    """
+    Prepare a dataframe for plotting by stripping extraneous columns and converting it into a series
+    """
     
-    global error_methods
-    
-    _results = {}
-    
-#    for method in tqdm_notebook(error_methods, desc="Methods", position=0):
-#        _results[method] = np.median(error(method)['error'])
-        
-    with Pool(processes=4) as pool:
-        _results = 0
-        for result in pool.imap(error, error_methods.keys()):
-            pass
-            
-    return pd.DataFrame(_results)
-
-
-
-                
-def locate_naive(series):
-    return series.idxmax()
-        
-
-def locate_interpolate(series, method, plot=False):
-    series = series.reindex(np.arange(0,360))
-    
-    series_left = series.copy()
-    series_left.index = np.arange(-360,0)
-    
-    series_right = series.copy()
-    series_right.index = np.arange(360,720)
-    
-    series_inter = pd.concat([series_left, series, series_right]).interpolate(method=method)[np.arange(0,360)]
-    
-    if plot:
-        series_inter.plot()
-    
-    return series_inter.idxmax()
+    df = dataframe.filter([x, y])
+    df = df.rename(columns={x: 'deg'}).sort_values('deg')
+    df['deg'] = np.round(df['deg'])
+    return df.set_index('deg').iloc[:,0]
     
 
 def plot(test, bssid):
-    global dataframe, bearings, access_points
+    global dataframe
     
     test_dataframe = dataframe[dataframe['test'] == test]
         
@@ -161,18 +153,18 @@ def plot(test, bssid):
 def bar(test, bssids=None, hist=False):
     # https://stackoverflow.com/a/22568292/1486966
     
-    global dataframe, bearings, access_points
+    global dataframe
     
     test_dataframe = dataframe[dataframe['test'] == test]
     
     if not bssids:
-        bssids = access_points['BSSID']
+        bssids = capmap.aps['BSSID']
         
     # Figure out subplot geometry
     nrows = np.ceil(np.sqrt(len(bssids)))
     ncols = np.ceil(len(bssids)/nrows)
     
-    test_bearings = bearings[bearings['test'] == test]
+    test_bearings = capmap.bearings[capmap.bearings['test'] == test]
         
     fig = plt.figure()
     fig.tight_layout()
@@ -180,7 +172,7 @@ def bar(test, bssids=None, hist=False):
     fig.suptitle(fig_name)
 
     for i, bssid in enumerate(bssids):
-        _name = access_points[access_points['BSSID'] == bssid]['SSID'].values[0]
+        _name = capmap.aps[capmap.aps['BSSID'] == bssid]['SSID'].values[0]
         _title = f"{_name}\n{bssid}"
         
         # Set up frame
@@ -221,14 +213,13 @@ def kml(file='test.kml'):
     """
     Generate kml file for Google Earth visualization
     """
-    global access_points, tests, bearings
     
     import simplekml
     kml = simplekml.Kml()
     folders = {}
     
     # Generate Capture Locations
-    for _, test in tests.iterrows():
+    for _, test in capmap.tests.iterrows():
         name = test['test']       
         lat = test['lat']
         lon = test['lon']
@@ -239,7 +230,7 @@ def kml(file='test.kml'):
         folders[name] = fol
        
     # Generate liens
-    for _, bearing in bearings.iterrows():
+    for _, bearing in capmap.bearings.iterrows():
         test_name = bearing['test']
         lat1 = bearing['lat1']
         lon1 = bearing['lon1']
@@ -248,7 +239,7 @@ def kml(file='test.kml'):
         folders[test_name].newlinestring(coords=[(lon1, lat1), (lon2, lat2)])
 
     # Generate AP locations
-    for _, ap in access_points.iterrows():
+    for _, ap in capmap.aps.iterrows():
         name = ap['SSID']
         desc = ap['BSSID']
         lat = ap['Lat']
@@ -258,85 +249,7 @@ def kml(file='test.kml'):
     kml.save(file)
         
 
-def load_bearings():
-    global tests, access_points
-    results = {'test':[], 'bssid':[], 'bearing':[], 'lat1':[], 'lon1':[], 'lat2':[], 'lon2':[]}
-    
-    for _, test in tests.iterrows():
-        for _, ap in access_points.iterrows():
-            results['test'].append(test['test'])
-            results['bssid'].append(ap["BSSID"])
-            results['bearing'].append(haversine_bearing(test['lat'], test['lon'], ap['Lat'], ap['Lon']))
-            results['lat1'].append(test['lat'])
-            results['lon1'].append(test['lon'])
-            results['lat2'].append(ap['Lat'])
-            results['lon2'].append(ap['Lon'])
-    
-    return pd.DataFrame(results)
-
-
 def dbm_to_mw(dbm):
     return 10**(dbm/10)
 
 
-def coords_from_dist_bearing(lat, lon, meters, bearing):
-    """
-    Calculate coordinates from a given point and bearing
-    From: http://www.movable-type.co.uk/scripts/latlong.html
-    """
-    
-    rad = np.deg2rad(bearing)
-    sigma = meters/1000/6371
-    
-    lat, lon = map(np.radians, [lat, lon])
-
-    dest_lat = np.arcsin(np.sin(lat)*np.cos(sigma)+np.cos(lat)*np.sin(sigma)*np.cos(rad))
-    dest_lon = lon + np.arctan2(np.sin(rad)*np.sin(sigma)*np.cos(lat), np.cos(sigma)-np.sin(lat)*np.sin(dest_lat))
-    
-    return (np.rad2deg(dest_lat), np.rad2deg(dest_lon))
-
-
-def distance(lat1, lon1, lat2, lon2):
-    """
-    Calculate the great circle distance between two points
-    on the earth (specified in decimal degrees)
-
-    All args must be of equal length.    
-    Credit: https://stackoverflow.com/a/29546836/1486966
-    """
-    lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
-
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-
-    a = np.sin(dlat/2.0)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2.0)**2
-
-    c = 2 * np.arcsin(np.sqrt(a))
-    km = 6371 * c
-    return km
-
-
-def haversine_bearing(lat1, lon1, lat2, lon2):
-    lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
-    
-    dlon = lon2 - lon1
-    
-    y = np.sin(dlon)*np.cos(lat2)
-    x = np.cos(lat1)*np.sin(lat2)-np.sin(lat1)*np.cos(lat2)*np.cos(dlon)
-    
-    return np.degrees(np.arctan2(y,x)) % 360
-
-error_methods = {'naive': locate_naive, 
-            'quadratic': lambda series: locate_interpolate(series, 'quadratic'), 
-            'cubic': lambda series: locate_interpolate(series, 'cubic'),
-            'linear': lambda series: locate_interpolate(series, 'linear'),
-            'slinear': lambda series: locate_interpolate(series, 'slinear'),
-            'barycentric': lambda series: locate_interpolate(series, 'barycentric'),
-            'krogh': lambda series: locate_interpolate(series, 'krogh'),
-            'piecewise_polynomial': lambda series: locate_interpolate(series, 'piecewise_polynomial'),
-            'from_derivatives': lambda series: locate_interpolate(series, 'from_derivatives'),
-            'pchip': lambda series: locate_interpolate(series, 'pchip'),
-            'akima': lambda series: locate_interpolate(series, 'akima'),}
-
-
-setup('../../capture')
