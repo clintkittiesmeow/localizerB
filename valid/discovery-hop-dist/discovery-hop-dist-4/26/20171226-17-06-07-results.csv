@@ -1,0 +1,2 @@
+,test,pass,duration,hop-rate,timestamp,bssid,ssid,psecurity,pencryption,ssi,channel,bearing,bearing_true,lat,lon,alt,lat_err,lon_error,alt_error
+0,discovery-hop-dist-4,26,20,0.1833,1513272613.039211,00:12:17:9f:79:b6,RESEARCH_MULLINS_3,WPA,,-53,3,184.73605421162046,178.44567987688697,39.782399205050005,-84.08232443460001,311.34345,0.0,0.0,0.0
