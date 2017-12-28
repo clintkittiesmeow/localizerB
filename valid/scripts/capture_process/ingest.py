@@ -14,7 +14,8 @@ import os
 import matplotlib.pyplot as plt
 from multiprocessing import Pool, cpu_count
 from tqdm import tqdm, tnrange, tqdm_notebook
-from locate import error_methods as error_methods
+from locate import error_methods, locate_method_helper
+from concurrent import futures
 
 def setup(directory):
     global dataframe
@@ -47,22 +48,6 @@ def get_test_gps(dataframe, directory):
         results['lon'].append(coord[1])
     return pd.DataFrame(results)
 
-def compare_errors():
-    
-    global error_methods
-    
-    _results = [pd.DataFrame()]
-
-    cores = max(cpu_count() - 1, 1)
-    
-    print(f"Processing with {cores} cores...")
-    
-    with Pool(processes=cores) as pool:
-        for df in tqdm_notebook(pool.imap_unordered(error, error_methods.keys()), total=len(error_methods), desc="Methods"):
-            _results.append(df)
-     
-    return pd.concat(_results, axis=0)
-
 
 def get_set(test='capture-1', test_pass=1, bssid='00:12:17:9f:79:b6'):
     global dataframe
@@ -72,46 +57,73 @@ def get_set(test='capture-1', test_pass=1, bssid='00:12:17:9f:79:b6'):
     return dataframe[(dataframe['test'] == test) & (dataframe['pass'] == test_pass) & (dataframe['bssid'] == bssid)]
 
 
-def error(method='naive', bearing_name='bearing_true'):
-    # Loop through each test/pass and determine the bearing based on maximum mw
-    # Return the error rate as the squared degrees from the correct bearing
+def error(methods, true_bearing=True):
+    # Loop through each set and determine the bearing based on maximum mw
+    # Return the error rate as the degrees from the correct bearing
+
+    global dataframe
     
-    global dataframe, error_methods
+    # Convert single method into list to simplify later code
+    if isinstance(methods, str):
+        methods = [methods]
     
-    if method not in error_methods:
-        print(f"You did not specify a valid method. Available methods: {_methods}")
+    # Ensure all provided methods are legitimate
+    for method in methods:
+        if method not in error_methods:
+            print(f"You did not specify a valid method '{method}'. Available methods: {_methods}")
+            return
     
-    _columns = ['test', 'pass', 'bssid', 'error', 'fallbacks', 'samples']
-    _rows = []
+    _bearing_col = 'bearing_true' if true_bearing else 'bearing'
     
-    _tests = pd.unique(capmap.bearings['test'])
+    # Set up lists to hold data
+    _columns = ['test', 'pass', 'bssid', 'samples', 'fallback', 'method', 'error']
+    _prepped_series = []
+    _results = []
     
-    for test in _tests:
-        _bssids = pd.unique(capmap.bearings['bssid'])
-        for bssid in _bssids:
-            _df = dataframe[(dataframe.test == test) & (dataframe.bssid == bssid)]
-            _passes = pd.unique(_df['pass'])
-            for i in _passes:
-                _fallback = False
-                _pass = prep_for_plot(_df[_df['pass'] == i], bearing_name)
-                _samples = len(_pass)
-                _true_bearing = capmap.bearings[(capmap.bearings['test'] == test) & (capmap.bearings['bssid'] == bssid)]['bearing'].values[0]
+    # Use multiprocessing to speed things up
+    with futures.ProcessPoolExecutor() as executor:
+        
+        # Make a pretty progress bar
+        _len = len(dataframe.groupby(['test', 'bssid', 'pass']))
+        with tqdm_notebook(total = _len, desc="Preparing data") as _pbar:
+        
+            _prep_processes = {}
+            _exec_processes = {}
+
+            # Prepare the data to be interpolated
+            for name, group in dataframe.groupby(['test','bssid']):
+                _test = name[0]
+                _bssid = name[1]
+                _true_bearing = capmap.bearings[(capmap.bearings['test'] == _test) & (capmap.bearings['bssid'] == _bssid)]['bearing'].values[0]
+
+                for i, sub_group in group.groupby('pass'):
+                    _fallback = None
+                    _samples = len(sub_group)
+                    _params_prep = [_test, i, _bssid, _samples, _fallback, _true_bearing]
+                    _prep_processes[executor.submit(prep_for_plot, sub_group, _bearing_col)] = _params_prep
+                    _pbar.update(1)
+
+            # Get the results of the data preparation and create exec_processes to interpolate
+            for future in futures.as_completed(_prep_processes):
+                _params_prep_done = _prep_processes[future]
+                _pass_prepared = future.result()
+                _prepped_series.append((_params_prep_done + [_pass_prepared]))
+
+        # Make another pretty progress bar
+        _len = len(_prepped_series)*len(methods)
+        with tqdm_notebook(total = _len, desc="Interpolating") as _pbar:
                 
-                try:
-                    _location = error_methods[method](_pass)
-                except ValueError as e:
-                    # print(f"Error: couldn't use {method} method, falling back to naive; {e}")
-                    _location = error_methods['naive'](_pass)
-                    _fallback = True
-                    
-                _error = (_location-_true_bearing)%360
-                # Reflect modular distance - as error gets larger than 180, it's actually getting closer to truth
-                if np.abs(_error) > 180:
-                    _error = -((360 - _error) % 360)
-                _rows.append([test, i, bssid, _error, _fallback, _samples])
-    _result = pd.DataFrame(_rows, columns=_columns)
-    _result.loc[:,'method'] = method
-    return _result
+            for method in methods:
+                _exec_processes[executor.submit(locate_method_helper, method, _prepped_series)] = method
+
+            # Get the results of interpolation
+            for future in futures.as_completed(_exec_processes):
+                _method = _exec_processes[future]
+                _errors = future.result()
+                _results += _errors
+                _pbar.update(len(_errors))
+
+    return pd.DataFrame(_results, columns=_columns)
 
 
 def prep_for_plot(dataframe, x='bearing_true', y='mw'):
@@ -119,11 +131,21 @@ def prep_for_plot(dataframe, x='bearing_true', y='mw'):
     Prepare a dataframe for plotting by stripping extraneous columns and converting it into a series
     """
     
-    df = dataframe.filter([x, y])
-    df = df.rename(columns={x: 'deg'}).sort_values('deg')
-    df['deg'] = np.round(df['deg'])
-    return df.set_index('deg').iloc[:,0]
+    # Stip columns and convert to series
+    df = dataframe.filter([x, y]).rename(columns={x: 'deg'}).sort_values('deg')
+    df['deg'] = np.round(df['deg']).drop_duplicates()
+    series_mid = df.set_index('deg').iloc[:,0].reindex(np.arange(0,360))
+
+    # Extend to the left and right in order to ease interpolation
+    series_left = series_mid.copy()
+    series_left.index = np.arange(-360,0)
+    series_right = series_mid.copy()
+    series_right.index = np.arange(360,720)
     
+    series_concat = pd.concat([series_left, series_mid, series_right])
+    
+    return series_concat
+
 
 def plot(test, bssid):
     global dataframe

@@ -6,31 +6,48 @@ def locate_random(series):
     
     
 def locate_naive(series):
+    if len(series) > 360:
+        series = series[np.arange(0,360)]
+        
     return series.idxmax()
         
 
-def locate_interpolate(series, method, plot=False, test=None, bssid=None):
-    series = series.reindex(np.arange(0,360))
-    
-    series_left = series.copy()
-    series_left.index = np.arange(-360,0)
-    
-    series_right = series.copy()
-    series_right.index = np.arange(360,720)
-    
-    series_inter = pd.concat([series_left, series, series_right]).interpolate(method=method)[np.arange(0,360)]
+def locate_interpolate(series_concat, method, plot=False, test=None, bssid=None):
+    series_inter = series_concat.interpolate(method=method)[np.arange(0,360)]
     
     guess = series_inter.idxmax()
     
     if plot:
         ax = series_inter.plot()
-        series.plot(ax=ax, style='ro')
+        series_concat[np.arange(0,360)].plot(ax=ax, style='ro')
         import capmap
         bearing = capmap.get_bearing(test, bssid)
         ax.axvline(x=bearing, color='green')        
         ax.axvline(x=guess, color='orange')
     
     return guess
+
+
+def locate_method_helper(method, series_list):
+    _results = []
+    for param in series_list:
+        series = param[-1]
+        bearing = param[-2]
+        try:
+            _guess = error_methods[method](series)
+        except ValueError:
+            _fallback_method = 'naive'
+            param[-3] = method
+            _guess = error_methods[_fallback_method](series)
+        finally:
+            _error = (_guess - bearing)%360
+            # Reflect modular distance - as error gets larger than 180, it's actually getting closer to truth
+            if np.abs(_error) > 180:
+                _error = -((360 - _error) % 360)
+            _results.append(param[:-2] + [method, _error])
+    
+    return _results
+
 
 error_methods = {
     'naive': locate_naive, 
@@ -46,3 +63,4 @@ error_methods = {
     'akima': lambda series: locate_interpolate(series, 'akima'),
     'random': lambda series: locate_random(series)
 }
+
