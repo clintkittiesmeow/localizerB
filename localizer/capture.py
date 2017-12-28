@@ -75,7 +75,7 @@ def capture(params, pass_num=None, reset=None, fine=None):
 
     # Threading sync flag
     _initialize_flag = threading.Event()
-    _start_flag = threading.Event()
+    _capture_ready = threading.Event()
 
     module_logger.info("Setting up capture threads")
 
@@ -85,19 +85,21 @@ def capture(params, pass_num=None, reset=None, fine=None):
         # Set up antenna control thread
         _antenna_response_queue = queue.Queue()
         _antenna_thread = antenna.AntennaStepperThread(_antenna_response_queue,
-                                                       _start_flag,
+                                                       _capture_ready,
                                                        params.duration,
                                                        params.degrees,
                                                        params.bearing_magnetic,
                                                        reset)
         _antenna_thread.start()
+        # Wait for antenna to be ready
+        _antenna_response_queue.get()
         pbar.update()
         pbar.refresh()
 
         # Set up gps thread
         _gps_response_queue = queue.Queue()
         _gps_thread = gps.GPSThread(_gps_response_queue,
-                                    _start_flag,
+                                    _capture_ready,
                                     params.duration,
                                     os.path.join(_capture_path, _capture_file_gps),
                                     os.path.join(_capture_path, _output_csv_gps))
@@ -109,7 +111,7 @@ def capture(params, pass_num=None, reset=None, fine=None):
         _capture_response_queue = queue.Queue()
         _capture_thread = CaptureThread(_capture_response_queue,
                                         _initialize_flag,
-                                        _start_flag,
+                                        _capture_ready,
                                         params.iface,
                                         params.duration,
                                         os.path.join(_capture_path, _capture_file_pcap))
@@ -118,7 +120,7 @@ def capture(params, pass_num=None, reset=None, fine=None):
         pbar.refresh()
 
         # Set up WiFi channel scanner thread
-        _channel_hopper_thread = wifi.ChannelHopper(_start_flag,
+        _channel_hopper_thread = wifi.ChannelHopper(_capture_ready,
                                                     params.iface,
                                                     params.duration,
                                                     params.hop_int,
@@ -197,6 +199,13 @@ def capture(params, pass_num=None, reset=None, fine=None):
                           meta_csv_fieldnames[18]: _output_csv_gps}
         _test_csv_writer.writerow(_test_csv_data)
 
+    # Perform processing while we wait for threads to finish:
+    _guesses = None
+    if params.fine:
+        module_logger.info("Processing capture")
+        _meta_path = os.path.join(_capture_path, _output_csv_test)
+        _, _, _, _guesses = process.process_capture(_meta_path, write_to_disk=True, guess=True, clockwise=True, macs=params.macs)
+
     # Show progress bar of joining threads
     with tqdm(total=4, desc="{:<35}".format("Waiting for threads")) as pbar:
 
@@ -218,10 +227,8 @@ def capture(params, pass_num=None, reset=None, fine=None):
         _capture_thread.join()
 
 
-    # Optionally perform fine-level captures
-    if params.fine:
-        _meta_path = os.path.join(_capture_path, _output_csv_test)
-        _, _, _, _guesses = process.process_capture(_meta_path, write_to_disk=True, guess=True, clockwise=True, macs=params.macs)
+    # Perform fine-level captures
+    if params.fine and _guesses:
         module_logger.info("Performing fine captures on {} access points".format(len(_guesses)))
         _width = params.fine[0]
         _duration = params.fine[1]

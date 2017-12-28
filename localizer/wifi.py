@@ -187,11 +187,11 @@ def set_channel(iface, channel):
 
 
 class ChannelHopper(threading.Thread):
-    def __init__(self, event_flag, iface, duration, interval=OPTIMAL_BEACON_INT, response_queue=None, distance=STD_CHANNEL_DISTANCE, init_chan=None, channels=IEEE80211bg):
+    def __init__(self, event_flag, iface, duration, hop_int=OPTIMAL_BEACON_INT, response_queue=None, distance=STD_CHANNEL_DISTANCE, init_chan=None, channels=IEEE80211bg):
         """
         Wait for commands on the queue and asynchronously change channels of wireless interface with specified timing.
 
-        :param command_queue queue.Queue: A queue to read commands in the format (iface, iterations, interval)
+        :param command_queue queue.Queue: A queue to read commands in the format (iface, iterations, hop_int)
         :param channels list[int]: A list of channels to iterate over
         """
 
@@ -203,7 +203,7 @@ class ChannelHopper(threading.Thread):
         self._event_flag = event_flag
         self._iface = iface
         self._duration = duration
-        self._interval = interval
+        self._hop_int = hop_int
         self._distance = distance
         self._response_queue = response_queue
         self._channels = channels
@@ -240,11 +240,11 @@ class ChannelHopper(threading.Thread):
         _stop_time = _start_time + self._duration
 
         # Only hop channels if we have a list of channels to hop, and our duration is greater than 0
-        if self._duration > 0 and len(self._channels) > 1:
+        if self._hop_int > 0 and len(self._channels) > 1:
 
             # HOP CHANNELS https://github.com/elBradford/snippets/blob/master/chanhop.sh
             while _stop_time > time.time():
-                time.sleep(self._interval)
+                time.sleep(self._hop_int)
                 _chan = (_chan + self._distance) % _chan_len
                 set_channel(self._iface, _channels[_chan])
 

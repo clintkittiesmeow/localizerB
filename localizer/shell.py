@@ -213,6 +213,8 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 elif param == "macs":
                     # Load macs from provided file
                     self._params.add_mac(localizer.load_macs(value))
+                elif param == "channel":
+                    self._params.channel = value
                 elif param == "test":
                     self._params.test = value
 
@@ -272,7 +274,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             module_logger.info("Starting capture")
             try:
                 _capture_path, _meta = capture.capture(self._params)
-                _, _, _, _aps = process.process_capture(_meta, write_to_disk=False, guess=True, macs=self._params.macs)
+                _, _, _, _aps = process.process_capture(os.path.join(_capture_path, _meta), write_to_disk=False, guess=True, macs=self._params.macs)
                 print(_aps)
 
             except RuntimeError as e:

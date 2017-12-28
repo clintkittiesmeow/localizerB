@@ -54,8 +54,8 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
                         'timestamp',
                         'bssid',
                         'ssid',
-                        'psecurity',
-                        'pencryption',
+                        'security',
+                        'encryption',
                         'ssi',
                         'channel',
                         'bearing_magnetic',
@@ -152,6 +152,8 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
     # else:
 
     _results_df = pd.DataFrame(_rows, columns=_default_columns)
+    # Add mw column
+    _results_df.loc[:,'mw'] = dbm_to_mw(_results_df['ssi'])
     module_logger.info("Completed processing {} beacons ({} failures)".format(_beacon_count, _beacon_failures))
 
     # If a path is given, write the results to a file
@@ -163,12 +165,14 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
 
     # If asked to guess, return list of bssids and a guess as to their bearing
     if guess:
-        _columns = ['ssid', 'bssid', 'bearing_magnetic', 'method']
+        _columns = ['ssid', 'bssid', 'bearing', 'security', 'strength', 'method']
         _rows = []
 
-        for names, group in _results_df.groupby(['ssi','bssid']):
+        for names, group in _results_df.groupby(['ssid','bssid']):
+            _security = pd.unique(group['security'])[0]
+            _strength = group['ssi'].max()
             _guess, _method = locate.interpolate(group, meta[capture.meta_csv_fieldnames[14]])
-            _rows.append([names[0], names[1], _guess, _method])
+            _rows.append([names[0], names[1], _guess, _security, _strength, _method])
 
         guess = pd.DataFrame(_rows, columns=_columns)
 
@@ -265,3 +269,7 @@ def process_directory(macs=None, clockwise=True):
 
 def process_capture_helper(tup):
     return process_capture(*tup)
+
+
+def dbm_to_mw(dbm):
+    return 10**(dbm/10)

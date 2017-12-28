@@ -20,8 +20,6 @@ class Params:
                     "macs",
                     "channel",
                     "fine",
-                    "fine_degrees",
-                    "fine_duration",
                     "test"]
 
     def __init__(self,
