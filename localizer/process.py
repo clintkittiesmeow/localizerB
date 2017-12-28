@@ -5,32 +5,31 @@ import time
 from datetime import date
 from multiprocessing import Pool
 
+import pandas as pd
 import pyshark
 from geomag import WorldMagneticModel
 from tqdm import tqdm
 
-from localizer import capture
+from localizer import capture, locate
 
 module_logger = logging.getLogger(__name__)
 
 
-def process_capture(meta_tuple):
+def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True, macs=None):
     """
     Process a captured data set
-    :param meta_tuple: Tuple of (meta_file:     path to meta file containing test results
-                                 write_to_disk: bool designating whether to write to disk
-                                 clockwise:     direction antenna was moving during the capture,
-                                 macs:          list of macs to filter on )
+    :param meta_file:       path to meta file containing test results
+    :param write_to_disk:   bool designating whether to write to disk
+    :param clockwise:       direction antenna was moving during the capture,
+    :param macs:            list of macs to filter on
+    :param columns:         A list of the column names to filter
     :return: (_beacon_count, _results_path):
     """
-    import pandas as pd
     from dateutil import parser
 
-    # Unpack tuple - required for tqdm imap
-    _meta_file, _write_to_disk, _clockwise, _macs = meta_tuple
-    _path = os.path.split(_meta_file)[0]
+    _path = os.path.split(meta_file)[0]
 
-    with open(os.path.join(_meta_file), 'rt') as meta_csv:
+    with open(meta_file, 'rt') as meta_csv:
         _meta_reader = csv.DictReader(meta_csv, dialect='unix')
         meta = next(_meta_reader)
 
@@ -48,33 +47,34 @@ def process_capture(meta_tuple):
 
     # Read results into a DataFrame
     # Build columns
-    _columns = ['test',
-                'pass',
-                'duration',
-                'hop-rate',
-                'timestamp',
-                'bssid',
-                'ssid',
-                'psecurity',
-                'pencryption',
-                'ssi',
-                'channel',
-                'bearing',
-                'bearing_true',
-                'lat',
-                'lon',
-                'alt',
-                'lat_err',
-                'lon_error',
-                'alt_error']
+    _default_columns = ['test',
+                        'pass',
+                        'duration',
+                        'hop-rate',
+                        'timestamp',
+                        'bssid',
+                        'ssid',
+                        'psecurity',
+                        'pencryption',
+                        'ssi',
+                        'channel',
+                        'bearing_magnetic',
+                        'bearing_true',
+                        'lat',
+                        'lon',
+                        'alt',
+                        'lat_err',
+                        'lon_error',
+                        'alt_error']
+
     _rows = []
     _pcap = os.path.join(_path, meta[capture.meta_csv_fieldnames[16]])
 
     # Build filter string
     _filter = 'wlan[0] == 0x80'
-    if _macs:
+    if macs:
         _mac_string = ' and ('
-        _mac_strings = ['wlan.bssid == ' + mac for mac in _macs]
+        _mac_strings = ['wlan.bssid == ' + mac for mac in macs]
         _mac_string += ' or '.join(_mac_strings)
         _mac_string += ')'
         _filter += _mac_string
@@ -86,8 +86,6 @@ def process_capture(meta_tuple):
         try:
             # Get time, bssid & db from packet
             pbssid = packet.wlan.bssid
-            if _macs and pbssid not in _macs:
-                continue
             ptime = parser.parse(packet.sniff_timestamp).timestamp()
             pssid = next((tag.ssid for tag in packet.wlan_mgt.tagged.all.tag if hasattr(tag, 'ssid')), None)
             pssi = int(packet.wlan_radio.signal_dbm) if hasattr(packet.wlan_radio, 'signal_dbm') else int(packet.radiotap.dbm_antsignal)
@@ -117,11 +115,11 @@ def process_capture(meta_tuple):
         if pdiff <= 0:
             pdiff = 0
 
-        cw = 1 if _clockwise else -1
+        cw = 1 if clockwise else -1
 
         pprogress = pdiff / total_time
-        pbearing = (cw * pprogress * float(meta["degrees"]) + float(meta["bearing"])) % 360
-        pbearing_true = (pbearing + _declination) % 360
+        pbearing_magnetic = (cw * pprogress * float(meta["degrees"]) + float(meta["bearing"])) % 360
+        pbearing_true = (pbearing_magnetic + _declination) % 360
 
         _rows.append([
             meta[capture.meta_csv_fieldnames[0]],
@@ -129,13 +127,13 @@ def process_capture(meta_tuple):
             meta[capture.meta_csv_fieldnames[4]],
             meta[capture.meta_csv_fieldnames[5]],
             ptime,
-            pbssid,
-            pssid,
+            str(pbssid),
+            str(pssid),
             psecurity,
             pencryption,
             pssi,
             pchannel,
-            pbearing,
+            pbearing_magnetic,
             pbearing_true,
             meta[capture.meta_csv_fieldnames[6]],
             meta[capture.meta_csv_fieldnames[7]],
@@ -147,18 +145,34 @@ def process_capture(meta_tuple):
 
         _beacon_count += 1
 
-    # Import the results into a DataFrame
-    _results_df = pd.DataFrame(_rows, columns=_columns)
+    # # Import the results into a DataFrame
+    # if columns:
+    #     _output_columns = list(set(columns) & set(_default_columns))
+    #     _results_df = pd.DataFrame(_rows, columns=_default_columns).filter(items=_output_columns)
+    # else:
+
+    _results_df = pd.DataFrame(_rows, columns=_default_columns)
     module_logger.info("Completed processing {} beacons ({} failures)".format(_beacon_count, _beacon_failures))
 
     # If a path is given, write the results to a file
-    if _write_to_disk:
+    if write_to_disk:
         _results_path = os.path.join(_path, time.strftime('%Y%m%d-%H-%M-%S') + "-results" + ".csv")
-        _results_df.to_csv(_results_path, sep=',')
+        _results_df.to_csv(_results_path, sep=',', index=False)
         module_logger.info("Wrote results to {}".format(_results_path))
-        return _beacon_count, _results_df, _results_path
-    else:
-        return _beacon_count, _results_df
+        write_to_disk = _results_path
+
+    # If asked to guess, return list of bssids and a guess as to their bearing
+    if guess:
+        _columns = ['ssid', 'bssid', 'bearing_magnetic', 'method']
+        _rows = []
+
+        for names, group in _results_df.groupby(['ssi','bssid']):
+            _guess, _method = locate.interpolate(group, meta[capture.meta_csv_fieldnames[14]])
+            _rows.append([names[0], names[1], _guess, _method])
+
+        guess = pd.DataFrame(_rows, columns=_columns)
+
+    return _beacon_count, _results_df, write_to_disk, guess
 
 
 def _check_capture_dir(files):
@@ -236,15 +250,18 @@ def process_directory(macs=None, clockwise=True):
             # Add meta file to list
             _file = _get_capture_meta(files)
             assert _file is not None
-            _tasks.append((_file, True, clockwise, macs))
+            _tasks.append((os.path.join(root,_file), True, False, clockwise, macs))
 
     print("Found {} unprocessed data sets".format(len(_tasks)))
 
     if _tasks:
         with Pool(processes=4) as pool:
             _results = 0
-            for result in tqdm(pool.imap_unordered(process_capture, _tasks), total=len(_tasks)):
+            for result in tqdm(pool.imap_unordered(process_capture_helper, _tasks), total=len(_tasks)):
                 _results += result[0]
 
             print("Processed {} packets in {} directories".format(_results, len(_tasks)))
 
+
+def process_capture_helper(tup):
+    return process_capture(*tup)
