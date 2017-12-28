@@ -1,10 +1,16 @@
 import atexit
 import logging
+import math
 import threading
 import time
 
 module_logger = logging.getLogger(__name__)
 
+# Always start due north (magnetic) or change this variable
+bearing_default = 0
+bearing_current = bearing_default
+bearing_max = 360
+bearing_min = -360
 
 # Constants
 RESET_RATE = 3
@@ -43,7 +49,7 @@ except RuntimeError as e:
 
 class AntennaStepperThread(threading.Thread):
 
-    def __init__(self, response_queue, event_flag, duration, degrees, bearing, reset=True):
+    def __init__(self, response_queue, event_flag, duration, degrees, bearing, reset=None):
 
         # Set up thread
         super().__init__()
@@ -59,8 +65,15 @@ class AntennaStepperThread(threading.Thread):
         self._reset = reset
 
     def run(self):
-        # Wait for commands in the queue
+        global bearing_current
+
         module_logger.info("Executing Stepper Thread")
+
+        # Point the antenna in the right direction
+        AntennaStepperThread.reset_antenna(self._bearing)
+
+        # Indicate readiness
+        self._response_queue.put('r')
 
         # Wait for the synchronization flag
         module_logger.info("Waiting for synchronization flag")
@@ -69,16 +82,44 @@ class AntennaStepperThread(threading.Thread):
         loop_start_time, loop_stop_time, wait, loop_average_time = self.rotate(self._degrees, self._duration)
 
         module_logger.info("Rotated antenna {} degrees for {:.2f}s (expected {}s)"
-                           .format(self._degrees, loop_stop_time-loop_start_time, self._duration))
+                           .format(self._degrees, loop_stop_time - loop_start_time, self._duration))
 
         # Put results on queue
         self._response_queue.put((loop_start_time, loop_stop_time, wait, loop_average_time))
 
-        if self._reset:
+        if self._reset is not None:
+            AntennaStepperThread.reset_antenna(self._reset)
+
+
+    @staticmethod
+    def determine_best_path(new_bearing):
+        global bearing_current
+
+        # Use algorithm tested and optimized in tests/antenna_motion.py
+        _travel = 180 - (540 + (bearing_current - new_bearing)) % 360
+        _proposed_new_bearing = bearing_current + _travel
+        if _proposed_new_bearing > bearing_max:
+            _travel = _travel - 360
+        elif _proposed_new_bearing < bearing_min:
+            _travel = 360 - _travel
+        return _travel
+
+    @staticmethod
+    def reset_antenna(bearing=bearing_default):
+        global bearing_current
+
+        # Check to see if new bearing is within 0.1
+        if not math.isclose(bearing_current,  bearing, abs_tol=0.1):
+            _travel = AntennaStepperThread.determine_best_path(bearing)
             module_logger.info("Resetting antenna position")
-            _reset_rate = RESET_RATE
-            _duration = _reset_rate * (self._degrees / 360)
-            self.rotate(self._degrees*-1, _duration)
+            _travel_duration = abs(_travel) * RESET_RATE / 360
+            module_logger.info(
+                "Resetting antenna {} degrees (from {} to {})".format(_travel, bearing_current, bearing))
+            AntennaStepperThread.rotate(_travel, _travel_duration)
+            bearing_current += _travel
+            return True
+
+        return False
 
     @staticmethod
     def rotate(degrees, duration):
