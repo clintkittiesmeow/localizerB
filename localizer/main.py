@@ -51,15 +51,11 @@ def main():
         LocalizerShell()
     elif args.process:
         from localizer import process
-        import csv
 
         # Read in macs
         _macs = None
         if args.macs:
-            with open(args.macs, 'r', newline='') as mac_tsv:
-                csv_reader = csv.DictReader(mac_tsv, dialect="unix", delimiter='\t')
-                _macs = [line['BSSID'] for line in csv_reader]
-
+            _macs = localizer.load_macs(args.macs)
         process.process_directory(_macs, not args.counterclockwise)
     elif args.serve:
         import socket
