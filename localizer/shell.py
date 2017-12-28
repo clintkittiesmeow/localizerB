@@ -112,7 +112,6 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
         self._modules = ["antenna", "gps", "capture", "wifi"]
         self._params = params.Params()
-        self._params.process = True
         self._aps = {}
 
         # Ensure we have root
@@ -169,7 +168,9 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
     def do_set(self, args):
         """
-        Set a named parameter.
+        Set a named parameter. All parameters require a value except for iface and macs
+        - iface without a parameter will set the iface to the first system wireless iface found
+        - macs without a parameter will delete the mac address whitelist
 
         :param args: Parameter name followed by new value
         :type args: str
@@ -186,6 +187,8 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                     self._params.iface = iface
                 else:
                     module_logger.error("There are no wireless interfaces available.")
+            elif split_args[0] == 'macs':
+                self._params.macs = []
             else:
                 module_logger.error("Parameters require a value".format(split_args[0]))
         elif split_args[0] in params.Params.VALID_PARAMS:
@@ -203,14 +206,19 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                     self._params.bearing_magnetic = value
                 elif param == "hop_int":
                     self._params.hop_int = value
+                elif param == "hop_dist":
+                    self._params.hop_dist = value
+                elif param == "mac":
+                    self._params.add_mac(value)
+                elif param == "macs":
+                    # Load macs from provided file
+                    self._params.add_mac(localizer.load_macs(value))
                 elif param == "test":
                     self._params.test = value
-                elif param == "process":
-                    self._params.process = value
 
                 print("Parameter '{}' set to '{}'".format(param, value))
 
-            except ValueError as e:
+            except (ValueError, FileNotFoundError) as e:
                 module_logger.error(e)
         else:
             module_logger.error("Invalid parameter '{}'".format(split_args[0]))
@@ -264,7 +272,9 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             module_logger.info("Starting capture")
             try:
                 _capture_path, _meta = capture.capture(self._params)
-                _, _results, _ = process.process_capture((_meta, True, True, []))
+                _, _, _, _aps = process.process_capture(_meta, write_to_disk=False, guess=True, macs=self._params.macs)
+                print(_aps)
+
             except RuntimeError as e:
                 module_logger.error(e)
                 return
@@ -520,14 +530,28 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             else:
                 raise ValueError("No valid test")
 
-            if 'process' in section:
-                _process = section['process']
-            elif 'process' in meta:
-                _process = meta['process']
+            if 'macs' in section:
+                _macs = section['macs'].split(',')
+            elif 'macs' in meta:
+                _macs = meta['macs'].split(',')
             else:
-                _process = False
+                _macs = None
 
-            test = localizer.params.Params(_iface, _duration, _degrees, _bearing, _hop_int, _hop_dist, _test, _process)
+            if 'channel' in section:
+                _channel = section['channel']
+            elif 'channel' in meta:
+                _channel = meta['channel']
+            else:
+                _channel = None
+
+            if 'fine' in section:
+                _fine = tuple(section['fine'].split(','))
+            elif 'fine' in meta:
+                _fine = tuple(meta['fine'].split(','))
+            else:
+                _fine = None
+
+            test = localizer.params.Params(_iface, _duration, _degrees, _bearing, _hop_int, _hop_dist, _macs, _channel, _fine, _test)
             # Validate iface
             module_logger.debug("Setting iface {}".format(_iface))
             test.iface = _iface
