@@ -11,7 +11,6 @@ from localizer.params import Params
 debug = False
 serve = False
 
-
 # Console colors
 W = '\033[0m'  # white (normal)
 R = '\033[31m'  # red
@@ -128,6 +127,13 @@ def set_debug(value):
             _console_handler.setLevel(logging.WARNING)
 
         package_logger.info("Debug set to {}".format(value))
+
+
+def load_macs(mac_path):
+    import csv
+    with open(mac_path, 'r', newline='') as mac_tsv:
+        csv_reader = csv.DictReader(mac_tsv, dialect="unix", delimiter='\t')
+        return [line['BSSID'] for line in csv_reader]
 
 
 # /dev/null, send output from programs so they don't print to screen.
