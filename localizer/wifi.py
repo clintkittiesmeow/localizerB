@@ -187,7 +187,7 @@ def set_channel(iface, channel):
 
 
 class ChannelHopper(threading.Thread):
-    def __init__(self, event_flag, iface, duration, interval=OPTIMAL_BEACON_INT, response_queue=None, distance=STD_CHANNEL_DISTANCE, channels=IEEE80211bg):
+    def __init__(self, event_flag, iface, duration, interval=OPTIMAL_BEACON_INT, response_queue=None, distance=STD_CHANNEL_DISTANCE, init_chan=None, channels=IEEE80211bg):
         """
         Wait for commands on the queue and asynchronously change channels of wireless interface with specified timing.
 
@@ -208,6 +208,12 @@ class ChannelHopper(threading.Thread):
         self._response_queue = response_queue
         self._channels = channels
 
+        # Validate initial channel, if given
+        self._init_chan = init_chan
+        if self._init_chan and self._init_chan not in self._channels:
+            raise ValueError("If you specify an initial channel, it must be in the list of channels")
+
+
         # Ensure we are in monitor mode
         if get_interface_mode(self._iface) != "monitor":
             set_interface_mode(self._iface, "monitor")
@@ -219,25 +225,38 @@ class ChannelHopper(threading.Thread):
 
         # Build local channel str list for speed
         _channels = [str(channel) for channel in self._channels]
-        _chan = 0                   # Initial channel position - will cycle through all in _channels
-        set_channel(self._iface, _channels[_chan]) # Set channel to first channel
+
+        # Initial channel position - will cycle through all in _channels
+        if self._init_chan:
+            _chan = self._channels.index(self._init_chan)
+        else:
+            _chan = 0
+        set_channel(self._iface, _channels[_chan])  # Set channel to first channel
 
         # Wait for synchronization signal
         self._event_flag.wait()
 
-        # HOP CHANNELS https://github.com/elBradford/snippets/blob/master/chanhop.sh
         _start_time = time.time()
         _stop_time = _start_time + self._duration
-        while _stop_time > time.time():
-            time.sleep(self._interval)
-            _chan = (_chan + self._distance) % _chan_len
-            set_channel(self._iface, _channels[_chan])
+
+        # Only hop channels if we have a list of channels to hop, and our duration is greater than 0
+        if self._duration > 0 and len(self._channels) > 1:
+
+            # HOP CHANNELS https://github.com/elBradford/snippets/blob/master/chanhop.sh
+            while _stop_time > time.time():
+                time.sleep(self._interval)
+                _chan = (_chan + self._distance) % _chan_len
+                set_channel(self._iface, _channels[_chan])
+
+        else:
+            time.sleep(_stop_time - time.time())
 
         _end_time = time.time()
 
         if self._response_queue is not None:
             self._response_queue.put((_start_time, _end_time))
-        module_logger.info("Hopped channels for {:.2f}s (expected {}s)".format(_end_time-_start_time, self._duration))
+        module_logger.info("Hopped {} channels for {:.2f}s (expected {}s)"
+                           .format(len(self._channels), _end_time-_start_time, self._duration))
 
 
 @atexit.register
