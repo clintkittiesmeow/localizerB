@@ -1,4 +1,5 @@
 import datetime
+import re
 import time
 
 from geomag import WorldMagneticModel
@@ -9,7 +10,19 @@ from localizer.wifi import OPTIMAL_BEACON_INT, STD_CHANNEL_DISTANCE
 
 class Params:
 
-    VALID_PARAMS = ["iface", "duration", "degrees", "bearing", "hop_int", "hop_dist", "test", "process"]
+    VALID_PARAMS = ["iface",
+                    "duration",
+                    "degrees",
+                    "bearing",
+                    "hop_int",
+                    "hop_dist",
+                    "mac",
+                    "macs",
+                    "channel",
+                    "fine",
+                    "fine_degrees",
+                    "fine_duration",
+                    "test"]
 
     def __init__(self,
                  iface=None,
@@ -18,16 +31,22 @@ class Params:
                  bearing=0.0,
                  hop_int=OPTIMAL_BEACON_INT,
                  hop_dist=STD_CHANNEL_DISTANCE,
+                 macs=None,
+                 channel=None,
+                 fine=None,
                  test=time.strftime('%Y%m%d-%H-%M-%S')):
 
         # Default Values
-        self._duration = self._degrees = self._bearing = self._hop_int = self._hop_dist = self._test = None
+        self._duration = self._degrees = self._bearing = self._hop_int = self._hop_dist = self._macs = self._channel = self._fine = self._test = None
         self._iface = iface
         self.duration = duration
         self.degrees = degrees
         self.bearing_magnetic = bearing
         self.hop_int = hop_int
         self.hop_dist = hop_dist
+        self.macs = macs
+        self.channel = channel
+        self.fine = fine
         self.test = test
 
     @property
@@ -51,11 +70,11 @@ class Params:
         try:
             if not isinstance(value, int):
                 value = int(value)
-            if value <= 0:
+            if value < 0:
                 raise ValueError()
             self._duration = value
         except ValueError:
-            raise ValueError("Invalid duration: {}; should be an integer > 0".format(value))
+            raise ValueError("Invalid duration: {}; should be an integer >= 0".format(value))
 
     @property
     def degrees(self):
@@ -81,7 +100,7 @@ class Params:
                 value = float(value)
             self._bearing = value % 360
         except ValueError:
-            raise ValueError("Invalid bearing: {}; should be a float >= 0 and < 360".format(value))
+            raise ValueError("Invalid bearing: {}; should be a float".format(value))
 
     def bearing_true(self, lat, lon, alt=0, date=datetime.date.today()):
         wmm = WorldMagneticModel()
@@ -97,11 +116,11 @@ class Params:
         try:
             if not isinstance(value, float):
                 value = round(float(value), 5)
-            if value <= 0:
+            if value < 0:
                 raise ValueError()
             self._hop_int = value
         except ValueError:
-            raise ValueError("Invalid hop interval: {}; should be a float > 0".format(value))
+            raise ValueError("Invalid hop interval: {}; should be a float >= 0".format(value))
 
     @property
     def hop_dist(self):
@@ -117,6 +136,77 @@ class Params:
             self._hop_dist = value
         except ValueError:
             raise ValueError("Invalid hop distance: {}; should be an integer > 0".format(value))
+
+    @property
+    def macs(self):
+        return self._macs
+
+    @macs.setter
+    def macs(self, value):
+        self._macs = []
+        if value:
+            self.add_mac(value)
+
+    def add_mac(self, value):
+        try:
+            # Check for string
+            if isinstance(value, str):
+                if self.validate_mac(value):
+                    self._macs.append(value)
+                else:
+                    raise ValueError
+            else:
+                # Try to treat value as an iterable
+                for mac in value:
+                    if self.validate_mac(mac):
+                        self._macs.append(mac)
+                    else:
+                        raise ValueError
+
+        except (ValueError, TypeError):
+            raise ValueError("Invalid mac address or list supplied; should be a mac string or list of mac strings")
+
+    @property
+    def channel(self):
+        return self._channel
+
+    @channel.setter
+    def channel(self, value):
+        try:
+            if value is None:
+                self._channel = value
+            else:
+                if not isinstance(value, int):
+                    value = int(value)
+                if value <= 0:
+                    raise ValueError()
+                self._channel = value
+        except ValueError:
+            raise ValueError("Invalid channel: {}; should be an integer > 0".format(value))
+
+    @property
+    def fine(self):
+        return self._fine
+
+    @fine.setter
+    def fine(self, value):
+        try:
+            if value is None:
+                self._fine = value
+            else:
+                if not isinstance(value, tuple) or len(value) != 2:
+                    raise ValueError()
+                else:
+                    _degrees = float(value[0])
+                    if _degrees <= 0 or _degrees > 360:
+                        raise ValueError()
+                    _duration = float(value[1])
+                    if _duration <= 0:
+                        raise ValueError()
+
+                    self._fine = (_degrees, _duration)
+        except ValueError:
+            raise ValueError("Invalid fine: {}; should be a tuple of length 2 (degrees[width], duration > 0)".format(value))
 
     @property
     def test(self):
@@ -144,6 +234,10 @@ class Params:
                self.duration is not None and \
                self.hop_int is not None
 
+    @staticmethod
+    def validate_mac(mac):
+        return re.match("[0-9a-f]{2}([-:])[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", mac.lower())
+
     def validate(self):
         return self.validate_antenna() and self.validate_gps() and self.validate_wifi()
 
@@ -151,10 +245,33 @@ class Params:
         retstr = "\n{} \tParameters: {}\n".format(localizer.G, localizer.W)
         for param, val in sorted(self.__dict__.items()):
 
-            # Highlight 'None' values as red, except for 'test' which is optional
-            signifier = ''
-            if param is not '_test' and val is None:
-                signifier = localizer.R
-            retstr += "\t    {:<15}{}{:<15}{}\n".format(str(param[1:]) + ': ', signifier, str(val), localizer.W)
+            # If no macs are specified, don't print
+            if param is '_macs':
+                if len(val) > 0:
+                    retstr += "\t    Macs:\n"
+                    for i, mac in enumerate(val):
+                        retstr += "\t\t    {:<15}{:<15}\n".format(i, mac)
+            else:
+                # Highlight 'None' values as red, except for 'test' which is optional
+                signifier = ''
+                if param is not '_test' and val is None:
+                    signifier = localizer.R
+                retstr += "\t    {:<15}{}{:<15}{}\n".format(str(param[1:]) + ': ', signifier, str(val), localizer.W)
 
         return retstr
+
+    def copy(self):
+        from copy import deepcopy
+
+        return Params(
+            self.iface,
+            self.duration,
+            self.degrees,
+            self.bearing_magnetic,
+            self.hop_int,
+            self.hop_dist,
+            deepcopy(self.macs),
+            self.channel,
+            deepcopy(self.fine),
+            self.test
+        )
