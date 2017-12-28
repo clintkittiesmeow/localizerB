@@ -9,7 +9,6 @@ def readme():
     with open('README.md') as f:
         return f.read()
 
-
 setup(
     name='localizer',
     version='0.1',
@@ -24,6 +23,10 @@ setup(
         'gpsd-py3',
         'tqdm',
         'pandas',
+        'scipy',
+        'numexpr',
+        'bottleneck',
+        'numpy',
     ],
     test_suite='nose.collector',
     tests_require=['nose'],
