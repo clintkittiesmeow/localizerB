@@ -10,7 +10,7 @@ from subprocess import PIPE, Popen
 import gpsd
 from tqdm import tqdm, trange
 
-from localizer import antenna, wifi, gps
+from localizer import antenna, wifi, gps, process
 
 OPTIMAL_CAPTURE_DURATION = 20
 
@@ -44,13 +44,16 @@ meta_csv_fieldnames = ['name',
                        'coords']
 
 
-def capture(params, pass_num=None):
+def capture(params, pass_num=None, reset=None, fine=None):
     # Set up working folder
     os.umask(0)
     _capture_path = params.test
 
     if pass_num is not None:
         _capture_path = os.path.join(_capture_path, pass_num)
+
+    if fine is not None:
+        _capture_path = os.path.join(_capture_path, fine)
 
     try:
         os.makedirs(_capture_path, exist_ok=True)
@@ -79,6 +82,18 @@ def capture(params, pass_num=None):
     # Show progress bar of creating threads
     with tqdm(total=4, desc="{:<35}".format("Setting up threads")) as pbar:
 
+        # Set up antenna control thread
+        _antenna_response_queue = queue.Queue()
+        _antenna_thread = antenna.AntennaStepperThread(_antenna_response_queue,
+                                                       _start_flag,
+                                                       params.duration,
+                                                       params.degrees,
+                                                       params.bearing_magnetic,
+                                                       reset)
+        _antenna_thread.start()
+        pbar.update()
+        pbar.refresh()
+
         # Set up gps thread
         _gps_response_queue = queue.Queue()
         _gps_thread = gps.GPSThread(_gps_response_queue,
@@ -87,18 +102,6 @@ def capture(params, pass_num=None):
                                     os.path.join(_capture_path, _capture_file_gps),
                                     os.path.join(_capture_path, _output_csv_gps))
         _gps_thread.start()
-        pbar.update()
-        pbar.refresh()
-
-        # Set up antenna control thread
-        _antenna_response_queue = queue.Queue()
-        _antenna_thread = antenna.AntennaStepperThread(_antenna_response_queue,
-                                                       _start_flag,
-                                                       params.duration,
-                                                       params.degrees,
-                                                       params.bearing_magnetic,
-                                                       True)
-        _antenna_thread.start()
         pbar.update()
         pbar.refresh()
 
@@ -118,7 +121,9 @@ def capture(params, pass_num=None):
         _channel_hopper_thread = wifi.ChannelHopper(_start_flag,
                                                     params.iface,
                                                     params.duration,
-                                                    params.hop_int, distance=params.hop_dist)
+                                                    params.hop_int,
+                                                    distance = params.hop_dist,
+                                                    init_chan = params.channel)
         _channel_hopper_thread.start()
         pbar.update()
         pbar.refresh()
@@ -211,6 +216,43 @@ def capture(params, pass_num=None):
         pbar.update()
         pbar.refresh()
         _capture_thread.join()
+
+
+    # Optionally perform fine-level captures
+    if params.fine:
+        _meta_path = os.path.join(_capture_path, _output_csv_test)
+        _, _, _, _guesses = process.process_capture(_meta_path, write_to_disk=True, guess=True, clockwise=True, macs=params.macs)
+        module_logger.info("Performing fine captures on {} access points".format(len(_guesses)))
+        _width = params.fine[0]
+        _duration = params.fine[1]
+
+        _params = []
+
+        for row in _guesses.iterrows():
+            _bearing_guess = row.bearing
+            _fine = row.ssid + "_" + row.bssid.replace(':', '').replace('-', '')
+
+            _new_bearing = _bearing_guess - _width/2
+            _new_degrees = _width
+
+            _param = params.copy()
+            _param.bearing_magnetic = _new_bearing
+            _param.degrees = _new_degrees
+            _param.duration = _duration
+            _param.fine = None
+            _params.append((_param, _fine))
+
+        # Try to set the next bearing to speed up capture
+        for i, val in enumerate(_params):
+            _p, _f = val
+
+            try:
+                _reset = _params[i + 1][0].bearing_magnetic
+            except IndexError:
+                _reset = None
+
+            # Recursively run capture
+            capture(_p, pass_num, _reset, _f)
 
     return _capture_path, _output_csv_test
 
