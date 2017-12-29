@@ -46,20 +46,24 @@ def main():
     if args.serve:
         localizer.set_serve(args.serve)
 
+    if args.macs:
+        args.macs = localizer.load_macs(args.macs)
+
+    # Shell Mode
     if args.shell:
         from localizer.shell import LocalizerShell
-        LocalizerShell()
+        LocalizerShell(args.macs)
+
     elif args.process:
         from localizer import process
+        process.process_directory(args.macs, not args.counterclockwise)
 
-        # Read in macs
-        _macs = None
-        if args.macs:
-            _macs = localizer.load_macs(args.macs)
-        process.process_directory(_macs, not args.counterclockwise)
     elif args.serve:
         import socket
         input("Serving files from {} on {}:80, press any key to exit".format(getcwd(), socket.gethostname()))
+
+    else:
+        parser.print_help()
 
 
 if __name__ == '__main__':
