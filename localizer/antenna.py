@@ -88,6 +88,9 @@ class AntennaStepperThread(threading.Thread):
         # Put results on queue
         self._response_queue.put((loop_start_time, loop_stop_time, wait, loop_average_time))
 
+        # Pause for a moment to reduce drift
+        time.sleep(.5)
+
         if self._reset is not None:
             AntennaStepperThread.reset_antenna(self._reset)
 
