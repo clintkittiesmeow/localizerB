@@ -13,7 +13,7 @@ bearing_max = 360
 bearing_min = -360
 
 # Constants
-RESET_RATE = 3
+RESET_RATE = 5
 # Default number of steps per radian
 steps_per_revolution = 400
 degrees_per_step = 360 / steps_per_revolution

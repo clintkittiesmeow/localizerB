@@ -90,7 +90,11 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
             ptime = parser.parse(packet.sniff_timestamp).timestamp()
             pssid = next((tag.ssid for tag in packet.wlan_mgt.tagged.all.tag if hasattr(tag, 'ssid')), None)
             pssi = int(packet.wlan_radio.signal_dbm) if hasattr(packet.wlan_radio, 'signal_dbm') else int(packet.radiotap.dbm_antsignal)
-            pchannel = int(packet.wlan_radio.channel) if hasattr(packet.wlan_radio, 'channel') else int(packet.radiotap.channel.freq)
+            pchannel = next((int(tag.current_channel) for tag in packet.wlan_mgt.tagged.all.tag if hasattr(tag, 'current_channel')), None)
+            #if not pchannel:
+            pchannel2 = int(packet.wlan_radio.channel) if hasattr(packet.wlan_radio, 'channel') else int(packet.radiotap.channel.freq)
+            if pchannel != pchannel2:
+                print('wut')
 
             # Determine AP security, if any https://ccie-or-null.net/2011/06/22/802-11-beacon-frames/
             pencryption = None
