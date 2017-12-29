@@ -435,7 +435,17 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         for _, _passes, _tests in self._batches:
             for test in _tests:
                 _test_overhead = antenna.RESET_RATE + 2
-                _time += ((test.duration * _passes) + _test_overhead)
+                _time_temp = ((test.duration * _passes) + _test_overhead)
+
+                if test.fine:
+                    _nmacs = len(test.macs)
+                    _deg, _dur = test.fine
+                    _time_fine = (_deg * _dur) / 360 + _test_overhead
+                    _time_fine *= _nmacs
+                    _time_temp += _time_fine
+
+                _time += _time_temp
+
         return datetime.timedelta(seconds=_time)
 
     @staticmethod
