@@ -42,13 +42,18 @@ def antenna_motion2(n=100000):
 
     for _ in range(0,n):
         _new_bearing = np.random.random()*360
-        _travel = distance(current_bearing,_new_bearing)
-        _proposed_new_bearing = current_bearing + _travel
-        if _proposed_new_bearing > max_distance_pos:
-            _travel = _travel - 360
-        elif _proposed_new_bearing < max_distance_neg:
-            _travel = 360 - _travel
-        current_bearing += _travel
+
+        _edge_case = bool(_new_bearing == current_bearing % 360)
+        if _edge_case and (current_bearing >= max_distance_pos or current_bearing <= max_distance_neg):
+            _travel = _new_bearing - current_bearing
+        else:
+            _travel = distance(current_bearing,_new_bearing)
+            _proposed_new_bearing = current_bearing + _travel
+            if _proposed_new_bearing > max_distance_pos:
+                _travel = _travel - 360
+            elif _proposed_new_bearing < max_distance_neg:
+                _travel = 360 - _travel
+            current_bearing += _travel
 
         assert current_bearing <= max_distance_pos
         assert current_bearing >= max_distance_neg

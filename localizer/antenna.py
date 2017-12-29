@@ -93,26 +93,13 @@ class AntennaStepperThread(threading.Thread):
 
 
     @staticmethod
-    def determine_best_path(new_bearing):
-        global bearing_current
-
-        # Use algorithm tested and optimized in tests/antenna_motion.py
-        _travel = 180 - (540 + (bearing_current - new_bearing)) % 360
-        _proposed_new_bearing = bearing_current + _travel
-        if _proposed_new_bearing > bearing_max:
-            _travel = _travel - 360
-        elif _proposed_new_bearing < bearing_min:
-            _travel = 360 - _travel
-        return _travel
-
-    @staticmethod
     def reset_antenna(bearing=bearing_default):
         global bearing_current
 
+        _travel = AntennaStepperThread.determine_best_path(bearing)
+
         # Check to see if new bearing is within 0.1
-        if not math.isclose(bearing_current,  bearing, abs_tol=0.1):
-            _travel = AntennaStepperThread.determine_best_path(bearing)
-            module_logger.info("Resetting antenna position")
+        if not math.isclose(bearing_current, bearing, abs_tol=0.1) and _travel != 0:
             _travel_duration = abs(_travel) * RESET_RATE / 360
             module_logger.info(
                 "Resetting antenna {} degrees (from {} to {})".format(_travel, bearing_current, bearing))
@@ -121,6 +108,26 @@ class AntennaStepperThread(threading.Thread):
             return True
 
         return False
+
+
+    @staticmethod
+    def determine_best_path(new_bearing):
+        global bearing_current
+
+        _edge_case = bool(new_bearing == bearing_current % 360)
+        if _edge_case and (bearing_current >= bearing_max or bearing_current <= bearing_min):
+            _travel = new_bearing - bearing_current
+        else:
+            # Use algorithm tested and optimized in tests/antenna_motion.py
+            _travel = 180 - (540 + (bearing_current - new_bearing)) % 360
+            _proposed_new_bearing = bearing_current + _travel
+            if _proposed_new_bearing > bearing_max:
+                _travel = _travel - 360
+            elif _proposed_new_bearing < bearing_min:
+                _travel = 360 - _travel
+
+        return _travel
+
 
     @staticmethod
     def rotate(degrees, duration):
@@ -137,7 +144,6 @@ class AntennaStepperThread(threading.Thread):
 
         global degrees_per_microstep, output
 
-        degrees_per_microstep = degrees_per_microstep
         pulses = round(degrees / degrees_per_microstep)
         wait = duration/abs(pulses)
         wait_half = wait/2
