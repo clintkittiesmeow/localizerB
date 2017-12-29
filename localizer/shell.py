@@ -384,7 +384,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 for test in _tests:
                     for p in range(_passes):
                         print(localizer.R + "Test {:>4}/{}".format(_curr, _total) + localizer.W)
-                        capture.capture(test, str(p).zfill(_len_pass), test.bearing)
+                        capture.capture(test, str(p).zfill(_len_pass), test.bearing_magnetic)
                         _curr += 1
 
     def do_show(self, _):
