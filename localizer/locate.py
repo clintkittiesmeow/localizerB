@@ -36,7 +36,7 @@ def prep_for_interpolation(dataframe, degrees=360, x='bearing_magnetic', y='mw')
     # Stip columns and convert to series
     df = dataframe.filter([x, y]).rename(columns={x: 'deg'}).sort_values('deg')
     df['deg'] = np.round(df['deg']).drop_duplicates()
-    series_mid = df.set_index('deg').iloc[:, 0].reindex(np.arange(0, 360))
+    series_mid = df.set_index('deg').reindex(np.arange(0, 360)).iloc[:,0]
 
     if degrees == 360:
         # Extend to the left and right in order to ease interpolation

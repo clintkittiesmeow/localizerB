@@ -54,8 +54,9 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
                         'timestamp',
                         'bssid',
                         'ssid',
-                        'security',
                         'encryption',
+                        'cipher',
+                        'auth',
                         'ssi',
                         'channel',
                         'bearing_magnetic',
@@ -88,21 +89,79 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
             pbssid = packet.wlan.bssid
             ptime = parser.parse(packet.sniff_timestamp).timestamp()
             pssid = next((tag.ssid for tag in packet.wlan_mgt.tagged.all.tag if hasattr(tag, 'ssid')), None)
+            if str(pssid).startswith("RESEARCH_MULLINS_"):
+                print(1)
             pssi = int(packet.wlan_radio.signal_dbm) if hasattr(packet.wlan_radio, 'signal_dbm') else int(packet.radiotap.dbm_antsignal)
             pchannel = int(packet.wlan_radio.channel) if hasattr(packet.wlan_radio, 'channel') else int(packet.radiotap.channel.freq)
 
-            # Determine AP security, if any
-            # WPA
-            try:
-                psecurity = next(("WPA" for tag in packet.wlan_mgt.tagged.all.tag if hasattr(tag, 'wfa.ie.wpa.version')), None)
-                # WEP
-                if not psecurity:
-                    psecurity = "WEP" if packet.wlan_mgt.fixed.all.capabilities_tree.has_field("privacy") else None
-                pencryption = None
-            except TypeError as e:
-                print("{}: {}".format(e, str(packet)))
+            # Determine AP security, if any https://ccie-or-null.net/2011/06/22/802-11-beacon-frames/
+            pencryption = None
+            pcipher = None
+            pauth = None
 
-        except AttributeError:
+            _cipher_tree = None
+            _auth_tree = None
+
+            # Parse Security Details
+            # Check for MS WPA tag
+            _ms_wpa = next((i for i, tag in enumerate(packet.wlan_mgt.tagged.all.tag) if hasattr(tag, 'wfa.ie.wpa.version')), None)
+            if _ms_wpa is not None:
+                pencryption = "WPA"
+
+                if hasattr(packet.wlan_mgt.tagged.all.tag[_ms_wpa].wfa.ie.wpa, 'akms.list.akms_tree'):
+                    _auth_tree = packet.wlan_mgt.tagged.all.tag[_ms_wpa].wfa.ie.wpa.akms.list.akms_tree
+
+                if hasattr(packet.wlan_mgt.tagged.all.tag[_ms_wpa].wfa.ie.wpa, 'ucs.list.ucs_tree'):
+                    _cipher_tree = packet.wlan_mgt.tagged.all.tag[_ms_wpa].wfa.ie.wpa.ucs.list.ucs_tree
+
+            # Check for RSN Tag
+            _rsn = next((i for i, tag in enumerate(packet.wlan_mgt.tagged.all.tag) if hasattr(tag, 'rsn')), None)
+            if _rsn is not None:
+                pencryption = "WPA"
+
+                if hasattr(packet.wlan_mgt.tagged.all.tag[_rsn].rsn, 'akms.list.akms_tree') and _auth_tree is None:
+                    _auth_tree = packet.wlan_mgt.tagged.all.tag[_rsn].rsn.akms.list.akms_tree
+
+                if hasattr(packet.wlan_mgt.tagged.all.tag[_rsn].rsn, 'pcs.list.pcs_tree') and _cipher_tree is None:
+                    _cipher_tree = packet.wlan_mgt.tagged.all.tag[_rsn].rsn.pcs.list.pcs_tree
+
+            # Parse _auth_tree
+            if _auth_tree:
+                try:
+                    _type = _auth_tree.type == '2'
+                except AttributeError:
+                    _type = next((_node.type for _node in _auth_tree if hasattr(_node, 'type') and (_node.type == '2' or _node.type == '3')), False)
+
+                if _type == '3':
+                    pauth = "FT"
+                elif _type == '2':
+                    pauth = "PSK"
+
+            # Parse _cipher_tree
+            if _cipher_tree:
+                _types = []
+                try:
+                    _types.append(_cipher_tree.type)
+                except AttributeError:
+                    _types += [_node.type for _node in _cipher_tree if hasattr(_node, 'type')]
+
+                if _types:
+                    _types_str = []
+                    for _type in _types:
+                        if _type == '4':
+                            _types_str.append("CCMP")
+                        elif _type == '2':
+                            _types_str.append("TKIP")
+                    pcipher = "+".join(_types_str)
+
+            if not pencryption:
+                # WEP
+                pencryption = "WEP" if packet.wlan_mgt.fixed.all.capabilities_tree.has_field("privacy") and packet.wlan_mgt.fixed.all.capabilities_tree.privacy == 1 else "Open"
+                if pencryption == "WEP":
+                    pcipher = "WEP"
+
+        except AttributeError as e:
+            module_logger.warning("Failed to parse packet: {}".format(e))
             _beacon_failures += 1
             continue
 
@@ -129,8 +188,9 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
             ptime,
             str(pbssid),
             str(pssid),
-            psecurity,
             pencryption,
+            pcipher,
+            pauth,
             pssi,
             pchannel,
             pbearing_magnetic,
@@ -169,10 +229,14 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
         _rows = []
 
         for names, group in _results_df.groupby(['ssid','bssid']):
-            _security = pd.unique(group['security'])[0]
+            _encryption = pd.unique(group['encryption'])[0]
+            _cipher = pd.unique(group['cipher'])[0]
+            _auth = pd.unique(group['auth'])[0]
             _strength = group['ssi'].max()
             _guess, _method = locate.interpolate(group, meta[capture.meta_csv_fieldnames[14]])
-            _rows.append([names[0], names[1], _guess, _security, _strength, _method])
+            if not names[0]:
+                names = ('<blank>', names[1])
+            _rows.append([names[0], names[1], _guess, _encryption, _strength, _method])
 
         guess = pd.DataFrame(_rows, columns=_columns)
 
