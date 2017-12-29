@@ -89,8 +89,6 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
             pbssid = packet.wlan.bssid
             ptime = parser.parse(packet.sniff_timestamp).timestamp()
             pssid = next((tag.ssid for tag in packet.wlan_mgt.tagged.all.tag if hasattr(tag, 'ssid')), None)
-            if str(pssid).startswith("RESEARCH_MULLINS_"):
-                print(1)
             pssi = int(packet.wlan_radio.signal_dbm) if hasattr(packet.wlan_radio, 'signal_dbm') else int(packet.radiotap.dbm_antsignal)
             pchannel = int(packet.wlan_radio.channel) if hasattr(packet.wlan_radio, 'channel') else int(packet.radiotap.channel.freq)
 
