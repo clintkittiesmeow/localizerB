@@ -19,11 +19,15 @@ def locate_interpolate(series_concat, method, plot=False, test=None, bssid=None)
     
     if plot:
         ax = series_inter.plot()
-        series_concat[np.arange(0,360)].plot(ax=ax, style='ro')
+        series_mid = series_concat[np.arange(0,360)]
+        series_mid.plot(ax=ax, style='ro')
         import capmap
-        bearing = capmap.get_bearing(test, bssid)
-        ax.axvline(x=bearing, color='green')        
+        bearing = capmap.get_bearing(test, bssid)      
         ax.axvline(x=guess, color='orange')
+        ax.axvline(x=bearing, color='green')
+        naive = locate_naive(series_mid)
+        ax.axvline(x=naive, color='purple')
+        print(f"Guess: {guess}, Naive: {naive}, True: {bearing}")
     
     return guess
 

@@ -57,7 +57,7 @@ def get_set(test='capture-1', test_pass=1, bssid='00:12:17:9f:79:b6'):
     return dataframe[(dataframe['test'] == test) & (dataframe['pass'] == test_pass) & (dataframe['bssid'] == bssid)]
 
 
-def error(methods, true_bearing=True):
+def error(methods, mw=True, true_bearing=True):
     # Loop through each set and determine the bearing based on maximum mw
     # Return the error rate as the degrees from the correct bearing
 
@@ -74,6 +74,7 @@ def error(methods, true_bearing=True):
             return
     
     _bearing_col = 'bearing_true' if true_bearing else 'bearing'
+    _power_col = 'mw' if mw else 'ssi'
     
     # Set up lists to hold data
     _columns = ['test', 'pass', 'bssid', 'samples', 'fallback', 'method', 'error']
@@ -96,13 +97,15 @@ def error(methods, true_bearing=True):
                 _bssid = name[1]
                 _true_bearing = capmap.bearings[(capmap.bearings['test'] == _test) & (capmap.bearings['bssid'] == _bssid)]['bearing'].values[0]
 
-                for i, sub_group in group.groupby('pass'):
+                pass_groups = group.groupby('pass')
+                for i, sub_group in pass_groups:
                     _fallback = None
                     _samples = len(sub_group)
                     _params_prep = [_test, i, _bssid, _samples, _fallback, _true_bearing]
-                    _prep_processes[executor.submit(prep_for_plot, sub_group, _bearing_col)] = _params_prep
-                    _pbar.update(1)
+                    _prep_processes[executor.submit(prep_for_plot, sub_group, _bearing_col, _power_col)] = _params_prep
 
+                _pbar.update(len(pass_groups))
+            
             # Get the results of the data preparation and create exec_processes to interpolate
             for future in futures.as_completed(_prep_processes):
                 _params_prep_done = _prep_processes[future]
