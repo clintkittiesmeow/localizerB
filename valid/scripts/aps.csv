@@ -9,3 +9,4 @@ Router Number,SSID,CHANNEL,PSK,Model,Firmware,BSSID,Admin,Username,Password,Loca
 7,RESEARCH_MULLINS_7,7,drmullinscaptlawresearch,WRT1200AC v2,2.0.4.173345,60:38:e0:06:34:e8,192.168.0.1,,drmullinscaptlawresearch,,39.783289,-84.083089,
 8,RESEARCH_MULLINS_8,8,drmullinscaptlawresearch,WRT1200AC v2,2.0.4.173345,60:38:e0:06:34:ac,192.168.0.1,,drmullinscaptlawresearch,,39.78325,-84.083226,
 9,RESEARCH_MULLINS_9,9,drmullinscaptlawresearch,WRT1200AC v2,2.0.4.173345,60:38:e0:06:3a:f0,192.168.0.1,,drmullinscaptlawresearch,,39.783421,-84.083837,
+10,RESEARCH_MULLINS_10,10,drmullinscaptlawresearch,"DIR-615, HW E3",5.1,1c:7e:e5:30:54:3e,192.168.0.1,admin,drmullinscaptlawresearch,,39.782486,-84.083945,297.4
