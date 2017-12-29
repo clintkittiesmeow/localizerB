@@ -229,7 +229,7 @@ def capture(params, pass_num=None, reset=None, fine=None):
 
     # Perform fine-level captures
     if params.fine and _guesses is not None and len(_guesses):
-        module_logger.info("Performing fine captures on {} access points:\n{}".format(len(_guesses, _guesses)))
+        module_logger.info("Performing fine captures on {} access points:\n{}".format(len(_guesses), _guesses))
         _width = params.fine[0]
         _duration = params.fine[1]
 
