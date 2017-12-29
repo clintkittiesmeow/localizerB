@@ -235,7 +235,7 @@ def capture(params, pass_num=None, reset=None, fine=None):
 
         _params = []
 
-        for row in _guesses.iterrows():
+        for i, row in _guesses.iterrows():
             _bearing_guess = row.bearing
             _fine = row.ssid + "_" + row.bssid.replace(':', '').replace('-', '')
 
