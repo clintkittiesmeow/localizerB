@@ -23,7 +23,7 @@ GR = '\033[37m'  # gray
 
 
 # Set up logging
-package_logger = logging.getLogger('localizer')
+package_logger = logging.getLogger()
 package_logger.setLevel(logging.DEBUG)
 _console_handler = logging.StreamHandler()
 _console_handler.setLevel(logging.WARNING)
