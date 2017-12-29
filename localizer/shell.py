@@ -107,11 +107,13 @@ class DirCmd(Cmd, object, metaclass=abc.ABCMeta):
 # Base Localizer Shell Class
 class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
-    def __init__(self):
+    def __init__(self, macs=None):
         super().__init__()
 
         self._modules = ["antenna", "gps", "capture", "wifi"]
         self._params = params.Params()
+        if macs:
+            self._params.macs = macs
         self._aps = {}
 
         # Ensure we have root
@@ -382,7 +384,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 for test in _tests:
                     for p in range(_passes):
                         print(localizer.R + "Test {:>4}/{}".format(_curr, _total) + localizer.W)
-                        capture.capture(test, str(p).zfill(_len_pass))
+                        capture.capture(test, str(p).zfill(_len_pass), test.bearing)
                         _curr += 1
 
     def do_show(self, _):

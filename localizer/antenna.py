@@ -80,6 +80,7 @@ class AntennaStepperThread(threading.Thread):
         self._event_flag.wait()
 
         loop_start_time, loop_stop_time, wait, loop_average_time = self.rotate(self._degrees, self._duration)
+        bearing_current += self._degrees
 
         module_logger.info("Rotated antenna {} degrees for {:.2f}s (expected {}s)"
                            .format(self._degrees, loop_stop_time - loop_start_time, self._duration))
