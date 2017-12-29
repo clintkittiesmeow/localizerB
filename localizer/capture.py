@@ -256,7 +256,7 @@ def capture(params, pass_num=None, reset=None, fine=None):
             try:
                 _reset = _params[i + 1][0].bearing_magnetic
             except IndexError:
-                _reset = None
+                _reset = params.bearing_magnetic
 
             # Recursively run capture
             capture(_p, pass_num, _reset, _f)
