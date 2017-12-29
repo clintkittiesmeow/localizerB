@@ -91,10 +91,8 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
             pssid = next((tag.ssid for tag in packet.wlan_mgt.tagged.all.tag if hasattr(tag, 'ssid')), None)
             pssi = int(packet.wlan_radio.signal_dbm) if hasattr(packet.wlan_radio, 'signal_dbm') else int(packet.radiotap.dbm_antsignal)
             pchannel = next((int(tag.current_channel) for tag in packet.wlan_mgt.tagged.all.tag if hasattr(tag, 'current_channel')), None)
-            #if not pchannel:
-            pchannel2 = int(packet.wlan_radio.channel) if hasattr(packet.wlan_radio, 'channel') else int(packet.radiotap.channel.freq)
-            if pchannel != pchannel2:
-                print('wut')
+            if not pchannel:
+                pchannel = int(packet.wlan_radio.channel) if hasattr(packet.wlan_radio, 'channel') else int(packet.radiotap.channel.freq)
 
             # Determine AP security, if any https://ccie-or-null.net/2011/06/22/802-11-beacon-frames/
             pencryption = None
@@ -207,16 +205,7 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
 
         _beacon_count += 1
 
-    # # Import the results into a DataFrame
-    # if columns:
-    #     _output_columns = list(set(columns) & set(_default_columns))
-    #     _results_df = pd.DataFrame(_rows, columns=_default_columns).filter(items=_output_columns)
-    # else:
-
     _results_df = pd.DataFrame(_rows, columns=_default_columns)
-    if _results_df.filter([_default_columns[12], _default_columns[13]]).isnull().values.any():
-        raise ValueError("Cannot have null values")
-
     # Add mw column
     _results_df.loc[:,'mw'] = dbm_to_mw(_results_df['ssi'])
     module_logger.info("Completed processing {} beacons ({} failures)".format(_beacon_count, _beacon_failures))
@@ -244,7 +233,7 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
                 names = ('<blank>', names[1])
             _rows.append([names[0], names[1], _guess, _channel, _encryption, _strength, _method])
 
-        guess = pd.DataFrame(_rows, columns=_columns)
+        guess = pd.DataFrame(_rows, columns=_columns).sort_values('strength', ascending=False)
 
     return _beacon_count, _results_df, write_to_disk, guess
 
