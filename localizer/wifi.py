@@ -19,7 +19,7 @@ IEEE80211bga_intl = IEEE80211bg_intl + IEEE80211a
 TU = 1024/1000000  # 1 TU = 1024 usec https://en.wikipedia.org/wiki/TU_(Time_Unit)
 STD_BEACON_INT = 100*TU
 OPTIMAL_BEACON_INT = 179*TU
-STD_CHANNEL_DISTANCE = 1
+STD_CHANNEL_DISTANCE = 2
 
 module_logger = logging.getLogger(__name__)
 

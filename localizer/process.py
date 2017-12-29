@@ -226,10 +226,11 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
 
     # If asked to guess, return list of bssids and a guess as to their bearing
     if guess:
-        _columns = ['ssid', 'bssid', 'bearing', 'security', 'strength', 'method']
+        _columns = ['ssid', 'bssid', 'bearing', 'channel', 'security', 'strength', 'method']
         _rows = []
 
         for names, group in _results_df.groupby(['ssid','bssid']):
+            _channel = group.groupby('channel').count()['test'].idxmax()
             _encryption = pd.unique(group['encryption'])[0]
             _cipher = pd.unique(group['cipher'])[0]
             _auth = pd.unique(group['auth'])[0]
@@ -237,7 +238,7 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
             _guess, _method = locate.interpolate(group, meta[capture.meta_csv_fieldnames[14]])
             if not names[0]:
                 names = ('<blank>', names[1])
-            _rows.append([names[0], names[1], _guess, _encryption, _strength, _method])
+            _rows.append([names[0], names[1], _guess, _channel, _encryption, _strength, _method])
 
         guess = pd.DataFrame(_rows, columns=_columns)
 

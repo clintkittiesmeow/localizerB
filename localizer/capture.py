@@ -246,6 +246,8 @@ def capture(params, pass_num=None, reset=None, fine=None):
             _param.bearing_magnetic = _new_bearing
             _param.degrees = _new_degrees
             _param.duration = _duration
+            _param.channel = row.channel
+            _param.hop_dist = 0
             _param.fine = None
             _params.append((_param, _fine))
 
