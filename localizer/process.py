@@ -106,10 +106,10 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
             if _ms_wpa is not None:
                 pencryption = "WPA"
 
-                if hasattr(packet.wlan_mgt.tagged.all.tag[_ms_wpa].wfa.ie.wpa, 'akms.list.akms_tree'):
+                if hasattr(packet.wlan_mgt.tagged.all.tag[_ms_wpa].wfa.ie.wpa, 'akms.list'):
                     _auth_tree = packet.wlan_mgt.tagged.all.tag[_ms_wpa].wfa.ie.wpa.akms.list.akms_tree
 
-                if hasattr(packet.wlan_mgt.tagged.all.tag[_ms_wpa].wfa.ie.wpa, 'ucs.list.ucs_tree'):
+                if hasattr(packet.wlan_mgt.tagged.all.tag[_ms_wpa].wfa.ie.wpa, 'ucs.list'):
                     _cipher_tree = packet.wlan_mgt.tagged.all.tag[_ms_wpa].wfa.ie.wpa.ucs.list.ucs_tree
 
             # Check for RSN Tag
@@ -117,10 +117,10 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
             if _rsn is not None:
                 pencryption = "WPA"
 
-                if hasattr(packet.wlan_mgt.tagged.all.tag[_rsn].rsn, 'akms.list.akms_tree') and _auth_tree is None:
+                if hasattr(packet.wlan_mgt.tagged.all.tag[_rsn].rsn, 'akms.list') and _auth_tree is None:
                     _auth_tree = packet.wlan_mgt.tagged.all.tag[_rsn].rsn.akms.list.akms_tree
 
-                if hasattr(packet.wlan_mgt.tagged.all.tag[_rsn].rsn, 'pcs.list.pcs_tree') and _cipher_tree is None:
+                if hasattr(packet.wlan_mgt.tagged.all.tag[_rsn].rsn, 'pcs.list') and _cipher_tree is None:
                     _cipher_tree = packet.wlan_mgt.tagged.all.tag[_rsn].rsn.pcs.list.pcs_tree
 
             # Parse _auth_tree
@@ -210,6 +210,9 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
     # else:
 
     _results_df = pd.DataFrame(_rows, columns=_default_columns)
+    if _results_df.filter([_default_columns[12], _default_columns[13]]).isnull().values.any():
+        raise ValueError("Cannot have null values")
+
     # Add mw column
     _results_df.loc[:,'mw'] = dbm_to_mw(_results_df['ssi'])
     module_logger.info("Completed processing {} beacons ({} failures)".format(_beacon_count, _beacon_failures))
