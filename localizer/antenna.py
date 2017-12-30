@@ -92,7 +92,8 @@ class AntennaStepperThread(threading.Thread):
         time.sleep(.5)
 
         if self._reset is not None:
-            AntennaStepperThread.reset_antenna(self._reset)
+            # Reset antenna for next test, assuming next test has same width as current
+            AntennaStepperThread.reset_antenna(self._reset, self._degrees)
 
     @staticmethod
     def reset_antenna(bearing=bearing_default, degrees=0):
@@ -104,7 +105,7 @@ class AntennaStepperThread(threading.Thread):
         if not math.isclose(bearing_current, bearing, abs_tol=0.1) and _travel != 0:
             _travel_duration = abs(_travel) * RESET_RATE / 360
             module_logger.info(
-                "Resetting antenna {} degrees (from {} to {})".format(_travel, bearing_current, bearing))
+                "Resetting antenna {} degrees (from {} to {})".format(_travel, bearing_current, bearing_current + _travel))
             AntennaStepperThread.rotate(_travel, _travel_duration)
             bearing_current += _travel
             return True
