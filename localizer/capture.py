@@ -260,6 +260,8 @@ def capture(params, pass_num=None, reset=None, fine=None):
                 _reset = params.bearing_magnetic
 
             # Recursively run capture
+            module_logger.debug("Fine Capture:\n\tCurrent bearing: {}\n\tCapture Bearing: {}\n\tReset Bearing: {}".format(antenna.bearing_current, _p.bearing_magnetic, _reset))
+            input("Press Enter to continue...")
             capture(_p, pass_num, _reset, _f)
 
     return _capture_path, _output_csv_test
