@@ -124,8 +124,8 @@ def capture(params, pass_num=None, reset=None, fine=None):
                                                     params.iface,
                                                     params.duration,
                                                     params.hop_int,
-                                                    distance = params.hop_dist,
-                                                    init_chan = params.channel)
+                                                    distance=params.hop_dist,
+                                                    init_chan=params.channel)
         _channel_hopper_thread.start()
         pbar.update()
         pbar.refresh()
@@ -225,7 +225,6 @@ def capture(params, pass_num=None, reset=None, fine=None):
         pbar.update()
         pbar.refresh()
         _capture_thread.join()
-
 
     # Perform fine-level captures
     if params.fine and _guesses is not None and len(_guesses):
