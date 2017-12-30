@@ -244,6 +244,8 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 pprint.pprint(wifi.get_interfaces())
             elif split_args[0] == "params":
                 print(str(self._params))
+            elif split_args[0] == "bearing":
+                print("Current bearing: {} degrees".format(antenna.bearing_current))
             else:
                 module_logger.error("Unknown parameter '{}'".format(split_args[0]))
         else:
