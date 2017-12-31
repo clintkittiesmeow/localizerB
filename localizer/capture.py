@@ -159,7 +159,7 @@ def capture(params, pass_num=None, reset=None, fine=None):
 
         pbar.update()
         pbar.refresh()
-        loop_start_time, loop_stop_time, loop_expected_time, loop_average_time = _antenna_response_queue.get()
+        loop_start_time, loop_stop_time = _antenna_response_queue.get()
 
         pbar.update()
         pbar.refresh()
@@ -170,8 +170,6 @@ def capture(params, pass_num=None, reset=None, fine=None):
         _capture_result_cap, _capture_result_drop = _capture_response_queue.get()
         module_logger.info("Captured {} packets ({} dropped)".format(_capture_result_cap, _capture_result_drop))
         # Spawn
-
-    print("Writing metadata...")
 
     # Write test metadata to disk
     module_logger.info("Writing test metadata to csv")

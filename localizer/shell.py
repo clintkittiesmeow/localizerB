@@ -342,16 +342,15 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         args = args.split()
         # Check for provided filename
         if len(args):
-            _filenames.append(args[0] + capture.TEST_SUFFIX)
-            if not os.path.isfile(_filenames[0]):
-                print("Invalid file specified: {}".format(args[0]))
-                return
+            for arg in args:
+                if os.path.isfile(arg):
+                    _filenames.append(arg)
+                else:
+                    if os.path.isfile(arg + capture.TEST_SUFFIX):
+                        _filenames.append(arg + capture.TEST_SUFFIX)
         else:
             # Get list of valid test batches in current directory
-            _files = next(os.walk('.'))[2]
-            for file in _files:
-                if file.endswith(capture.TEST_SUFFIX):
-                    _filenames.append(file)
+            _filenames = [file for file in next(os.walk('.'))[2] if file.endswith(capture.TEST_SUFFIX)]
 
         print("Found {} batches".format(len(_filenames)))
 
@@ -366,6 +365,9 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 module_logger.error(e)
 
         logging.info("Imported {} batches".format(_count))
+
+    def complete_import(self, text, line, begidx, endidx):
+        return [file for file in next(os.walk('.'))[2] if file.startswith(text) and file.endswith(capture.TEST_SUFFIX)]
 
     def do_capture(self, _):
         """
@@ -389,7 +391,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                         capture.capture(test, str(p).zfill(_len_pass), test.bearing_magnetic)
                         _curr += 1
 
-    def do_show(self, _):
+    def do_get(self, _):
         """
         Print the tests
         """
@@ -467,7 +469,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         config = configparser.ConfigParser()
         config.read(file, encoding='ascii')
 
-        if not len(config):
+        if not len(config.sections()):
             raise ValueError("Invalid test config file: {}".format(file))
 
         _passes = int(config['meta']['passes'])

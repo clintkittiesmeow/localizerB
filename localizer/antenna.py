@@ -4,6 +4,8 @@ import math
 import threading
 import time
 
+import pigpio
+
 module_logger = logging.getLogger(__name__)
 
 # Always start due north (magnetic) or change this variable
@@ -13,38 +15,35 @@ bearing_max = 720
 bearing_min = -360
 
 # Constants
-RESET_RATE = 5
+RESET_RATE = 3
 # Default number of steps per radian
 steps_per_revolution = 400
 degrees_per_step = 360 / steps_per_revolution
 microsteps_per_step = 32
+microsteps_per_revolution = 400*32
 degrees_per_microstep = degrees_per_step / microsteps_per_step
 # Set up GPIO
-PUL_min = 17
-DIR_min = 27
-ENA_min = 22
+PUL_min = 18
+DIR_min = 23
+ENA_min = 24
 
 
-# Try to perform GPIO setup, but if not available print error and continue
-try:
-    from RPi import GPIO
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(PUL_min, GPIO.OUT, initial=GPIO.LOW)
-    GPIO.setup(DIR_min, GPIO.OUT)
-    GPIO.setup(ENA_min, GPIO.OUT, initial=GPIO.HIGH)
-    GPIO.setwarnings(False)
+pi = pigpio.pi()
 
-    cleanup = GPIO.cleanup
-    output = GPIO.output
-except RuntimeError as e:
-    module_logger.warning(e)
-    module_logger.info("Setting up dummy functions 'cleanup' and 'output'")
+if not pi.connected:
+    pi = pigpio.pi('192.168.137.68', 8888)
 
-    def cleanup():
-        pass
+if not pi.connected:
+    raise Exception("Need to have pigpiod running")
 
-    def output(*_):
-        pass
+pi.set_mode(PUL_min, pigpio.OUTPUT)
+pi.write(PUL_min, pigpio.LOW)
+pi.set_mode(DIR_min, pigpio.OUTPUT)
+pi.set_mode(ENA_min, pigpio.OUTPUT)
+pi.write(ENA_min, pigpio.HIGH)
+
+cleanup = pi.wave_clear()
+output = pi.write
 
 
 class AntennaStepperThread(threading.Thread):
@@ -79,14 +78,14 @@ class AntennaStepperThread(threading.Thread):
         module_logger.info("Waiting for synchronization flag")
         self._event_flag.wait()
 
-        loop_start_time, loop_stop_time, wait, loop_average_time = self.rotate(self._degrees, self._duration)
+        _start_time, _stop_time = self.rotate(self._degrees, self._duration)
         bearing_current += self._degrees
 
-        module_logger.info("Rotated antenna {} degrees for {:.2f}s (expected {}s)"
-                           .format(self._degrees, loop_stop_time - loop_start_time, self._duration))
+        module_logger.info("Rotated antenna {} degrees for {:.2f}s"
+                           .format(self._degrees, _stop_time - _start_time))
 
         # Put results on queue
-        self._response_queue.put((loop_start_time, loop_stop_time, wait, loop_average_time))
+        self._response_queue.put((_start_time, _stop_time))
 
         # Pause for a moment to reduce drift
         time.sleep(.5)
@@ -139,53 +138,41 @@ class AntennaStepperThread(threading.Thread):
         :type degrees: int
         :param duration: Time to take for rotation
         :type duration: float
-        :return: loop start time, loop end time, expected iteration time, measured iteration time
+        :return: start, end
         :rtype: tuple
         """
 
         global degrees_per_microstep, output
 
-        pulses = round(degrees / degrees_per_microstep)
-        wait = duration/abs(pulses)
-        wait_half = wait/2
+        _frequency = microsteps_per_revolution/duration
 
-        if pulses < 0:
+        _ramp = 2 # degrees
+        _ramp_frequency = _frequency/2
+        _ramp_pulses = round(_ramp / degrees_per_microstep)
+
+        _pulses = round((degrees - 2*_ramp) / degrees_per_microstep)
+
+        _ramp = [[_ramp_frequency, _ramp_pulses],
+                 [_frequency, _pulses],
+                 [_ramp_frequency, _ramp_pulses]]
+
+        if _pulses < 0:
             output(DIR_min, 1)
-            pulses = -pulses
+            _pulses = -_pulses
         else:
             output(DIR_min, 0)
 
-        # Optimization https://wiki.python.org/moin/PythonSpeed/PerformanceTips
-        now = time.time
-        sleep = time.sleep
-        output = output
+        _chain = AntennaStepperThread.generate_ramp(_ramp)
 
-        loop_start_time = time.time()
+        _duration = (int(1000000 / _frequency) * _pulses + 2 * int(1000000 / _ramp_frequency) * _ramp_pulses)/1000000
+        _time_start = time.time()
+        pi.wave_chain(_chain)
+        _time_end = _time_start + _duration
 
-        # Step through each step
-        for step in range(0, pulses):
-            # Calculate remaining time for current loop
-            curr_loop = step*wait + loop_start_time
+        while time.time() < _time_end:
+            time.sleep(.1)
 
-            output(PUL_min, 1)
-
-            # Wait for half the remaining available time in the loop
-            remaining = (curr_loop-now())-wait_half
-            if remaining > 0:
-                sleep(remaining)
-
-            output(PUL_min, 0)
-
-            # Wait remaining loop time, if any
-            remaining = curr_loop - now()
-            if remaining > 0:
-                sleep(remaining)
-
-        loop_stop_time = time.time()
-
-        loop_average_time = (time.time() - loop_start_time) / pulses
-
-        return loop_start_time, loop_stop_time, wait, loop_average_time
+        return _time_start, _time_end
 
     @staticmethod
     def antenna_set_en(val):
@@ -196,6 +183,35 @@ class AntennaStepperThread(threading.Thread):
         """
 
         output(ENA_min, val)
+
+    @staticmethod
+    def generate_ramp(ramp):
+        """Generate ramp wave forms.
+        ramp:  List of [Frequency, Steps]
+        """
+        pi.wave_clear()  # clear existing waves
+        length = len(ramp)  # number of ramp levels
+        wid = [-1] * length
+
+        # Generate a wave per ramp level
+        for i in range(length):
+            frequency = ramp[i][0]
+            micros = int(1000000 / frequency)
+            wf = []
+            wf.append(pigpio.pulse(1 << PUL_min, 0, micros))  # pulse on
+            wf.append(pigpio.pulse(0, 1 << PUL_min, micros))  # pulse off
+            pi.wave_add_generic(wf)
+            wid[i] = pi.wave_create()
+
+        # Generate a chain of waves
+        chain = []
+        for i in range(length):
+            steps = ramp[i][1]
+            x = steps & 255
+            y = steps >> 8
+            chain += [255, 0, wid[i], 255, 1, x, y]
+
+        return chain  # Return chain.
 
 
 @atexit.register

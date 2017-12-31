@@ -27,6 +27,7 @@ setup(
         'numexpr',
         'bottleneck',
         'numpy',
+        'pigpio'
     ],
     test_suite='nose.collector',
     tests_require=['nose'],
