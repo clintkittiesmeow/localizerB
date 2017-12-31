@@ -149,31 +149,43 @@ class AntennaStepperThread(threading.Thread):
 
         _frequency = microsteps_per_revolution/duration
 
-        _ramp1 = 1 # degrees
-        _ramp1_frequency = _frequency / 4
-        _ramp1_pulses = round(_ramp1 / degrees_per_microstep)
+        if degrees > 6:
+            _ramp1 = 1 # degrees
+            _ramp1_frequency = _frequency / 4
+            _ramp1_pulses = round(_ramp1 / degrees_per_microstep)
 
-        _ramp2 = 1 # degrees
-        _ramp2_frequency = _frequency / 2
-        _ramp2_pulses = round(_ramp2 / degrees_per_microstep)
+            _ramp2 = 1 # degrees
+            _ramp2_frequency = _frequency / 2
+            _ramp2_pulses = round(_ramp2 / degrees_per_microstep)
 
-        _ramp3 = 1 # degrees
-        _ramp3_frequency = 3 * _frequency / 4
-        _ramp3_pulses = round(_ramp3 / degrees_per_microstep)
+            _ramp3 = 1 # degrees
+            _ramp3_frequency = 3 * _frequency / 4
+            _ramp3_pulses = round(_ramp3 / degrees_per_microstep)
 
-        _pulses = round((degrees - 2*(_ramp1 + _ramp2 + _ramp3)) / degrees_per_microstep)
+            _pulses = round((degrees - 2*(_ramp1 + _ramp2 + _ramp3)) / degrees_per_microstep)
 
-        _ramp = [[_ramp1_frequency, _ramp1_pulses],
-                 [_ramp2_frequency, _ramp2_pulses],
-                 [_ramp3_frequency, _ramp3_pulses],
-                 [_frequency, _pulses],
-                 [_ramp3_frequency, _ramp3_pulses],
-                 [_ramp2_frequency, _ramp2_pulses],
-                 [_ramp1_frequency, _ramp1_pulses]]
+            _ramp = [[_ramp1_frequency, _ramp1_pulses],
+                     [_ramp2_frequency, _ramp2_pulses],
+                     [_ramp3_frequency, _ramp3_pulses],
+                     [_frequency, _pulses],
+                     [_ramp3_frequency, _ramp3_pulses],
+                     [_ramp2_frequency, _ramp2_pulses],
+                     [_ramp1_frequency, _ramp1_pulses]]
+
+        else:
+            _pulses = round(degrees/degrees)
+            _ramp = [[_frequency/3, _pulses]]
+
+        _duration = 0
+        for r in _ramp:
+            assert r[0] > 0, "degrees: {}, duration: {}, ramp freq: {}".format(degrees, duration, r[0])
+            assert r[1] > 0, "degrees: {}, duration: {}, ramp pulses: {}".format(degrees, duration, r[0])
+            _duration += int(1000000 / r[0]) * r[1]
+
+        _duration *= 2
 
         _chain, _wid = AntennaStepperThread.generate_ramp(_ramp)
 
-        _duration = 2 * ((int(1000000 / _frequency) * _pulses) + 2 * (int(1000000 / _ramp1_frequency) * _ramp1_pulses) + (int(1000000 / _ramp2_frequency) * _ramp2_pulses) + (int(1000000 / _ramp3_frequency) * _ramp3_pulses))/1000000
         _time_start = time.time()
         pi.wave_chain(_chain)
         _time_end = _time_start + _duration
