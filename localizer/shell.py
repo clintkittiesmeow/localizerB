@@ -4,6 +4,7 @@ import datetime
 import logging
 import os
 import pprint
+import time
 from cmd import Cmd
 from distutils.util import strtobool
 
@@ -381,15 +382,18 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             for _, _passes, _tests in self._batches:
                 _total += len(_tests)*_passes
 
+            _start_time = time.time()
             print("Starting batch of {} tests".format(_total))
             _curr = 0
             for _, _passes, _tests in self._batches:
                 _len_pass = len(str(_passes))
                 for test in _tests:
                     for p in range(_passes):
-                        print(localizer.R + "Test {:>4}/{}".format(_curr, _total) + localizer.W)
+                        print(localizer.R + "Test {:>4}/{}\t\t{} elapsed".format(_curr, _total, datetime.timedelta(seconds=time.time()-_start_time)) + localizer.W)
                         capture.capture(test, str(p).zfill(_len_pass), test.bearing_magnetic)
                         _curr += 1
+
+            print("Complete - total time elapsed: {}".format(datetime.timedelta(seconds=time.time()-_start_time)))
 
     def do_get(self, _):
         """
