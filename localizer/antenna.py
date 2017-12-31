@@ -20,7 +20,7 @@ RESET_RATE = 3
 steps_per_revolution = 400
 degrees_per_step = 360 / steps_per_revolution
 microsteps_per_step = 32
-microsteps_per_revolution = 400*32
+microsteps_per_revolution = 400*32*2
 degrees_per_microstep = degrees_per_step / microsteps_per_step
 # Set up GPIO
 PUL_min = 18
@@ -41,9 +41,6 @@ pi.write(PUL_min, pigpio.LOW)
 pi.set_mode(DIR_min, pigpio.OUTPUT)
 pi.set_mode(ENA_min, pigpio.OUTPUT)
 pi.write(ENA_min, pigpio.HIGH)
-
-cleanup = pi.wave_clear()
-output = pi.write
 
 
 class AntennaStepperThread(threading.Thread):
@@ -142,35 +139,50 @@ class AntennaStepperThread(threading.Thread):
         :rtype: tuple
         """
 
-        global degrees_per_microstep, output
+        pi.wave_clear()
+
+        if degrees < 0:
+            pi.write(DIR_min, 1)
+            degrees = - degrees
+        else:
+            pi.write(DIR_min, 0)
 
         _frequency = microsteps_per_revolution/duration
 
-        _ramp = 2 # degrees
-        _ramp_frequency = _frequency/2
-        _ramp_pulses = round(_ramp / degrees_per_microstep)
+        _ramp1 = 1 # degrees
+        _ramp1_frequency = _frequency / 4
+        _ramp1_pulses = round(_ramp1 / degrees_per_microstep)
 
-        _pulses = round((degrees - 2*_ramp) / degrees_per_microstep)
+        _ramp2 = 1 # degrees
+        _ramp2_frequency = _frequency / 2
+        _ramp2_pulses = round(_ramp2 / degrees_per_microstep)
 
-        _ramp = [[_ramp_frequency, _ramp_pulses],
+        _ramp3 = 1 # degrees
+        _ramp3_frequency = 3 * _frequency / 4
+        _ramp3_pulses = round(_ramp3 / degrees_per_microstep)
+
+        _pulses = round((degrees - 2*(_ramp1 + _ramp2 + _ramp3)) / degrees_per_microstep)
+
+        _ramp = [[_ramp1_frequency, _ramp1_pulses],
+                 [_ramp2_frequency, _ramp2_pulses],
+                 [_ramp3_frequency, _ramp3_pulses],
                  [_frequency, _pulses],
-                 [_ramp_frequency, _ramp_pulses]]
+                 [_ramp3_frequency, _ramp3_pulses],
+                 [_ramp2_frequency, _ramp2_pulses],
+                 [_ramp1_frequency, _ramp1_pulses]]
 
-        if _pulses < 0:
-            output(DIR_min, 1)
-            _pulses = -_pulses
-        else:
-            output(DIR_min, 0)
+        _chain, _wid = AntennaStepperThread.generate_ramp(_ramp)
 
-        _chain = AntennaStepperThread.generate_ramp(_ramp)
-
-        _duration = (int(1000000 / _frequency) * _pulses + 2 * int(1000000 / _ramp_frequency) * _ramp_pulses)/1000000
+        _duration = 2 * ((int(1000000 / _frequency) * _pulses) + 2 * (int(1000000 / _ramp1_frequency) * _ramp1_pulses) + (int(1000000 / _ramp2_frequency) * _ramp2_pulses) + (int(1000000 / _ramp3_frequency) * _ramp3_pulses))/1000000
         _time_start = time.time()
         pi.wave_chain(_chain)
         _time_end = _time_start + _duration
 
         while time.time() < _time_end:
             time.sleep(.1)
+
+        for wid in _wid:
+            pi.wave_delete(wid)
 
         return _time_start, _time_end
 
@@ -182,7 +194,7 @@ class AntennaStepperThread(threading.Thread):
         :type val: bool
         """
 
-        output(ENA_min, val)
+        pi.write(ENA_min, val)
 
     @staticmethod
     def generate_ramp(ramp):
@@ -211,7 +223,7 @@ class AntennaStepperThread(threading.Thread):
             y = steps >> 8
             chain += [255, 0, wid[i], 255, 1, x, y]
 
-        return chain  # Return chain.
+        return chain, wid  # Return chain.
 
 
 @atexit.register
@@ -221,4 +233,4 @@ def cleanup_gpio():
     """
 
     module_logger.info("Cleaning up GPIO")
-    cleanup()
+    pi.wave_clear()
