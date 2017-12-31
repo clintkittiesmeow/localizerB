@@ -183,6 +183,7 @@ class AntennaStepperThread(threading.Thread):
             _duration += int(1000000 / r[0]) * r[1]
 
         _duration *= 2
+        _duration /= 1000000
 
         _chain, _wid = AntennaStepperThread.generate_ramp(_ramp)
 
