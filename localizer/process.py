@@ -2,6 +2,7 @@ import csv
 import logging
 import os
 import time
+from concurrent import futures
 from datetime import date
 from multiprocessing import Pool
 
@@ -219,21 +220,31 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
 
     # If asked to guess, return list of bssids and a guess as to their bearing
     if guess:
-        _columns = ['ssid', 'bssid', 'bearing', 'channel', 'security', 'strength', 'method']
+        _columns = ['ssid', 'bssid', 'channel', 'security', 'strength', 'method', 'bearing']
         _rows = []
 
-        for names, group in _results_df.groupby(['ssid','bssid']):
-            _channel = group.groupby('channel').count()['test'].idxmax()
-            _encryption = pd.unique(group['encryption'])[0]
-            _cipher = pd.unique(group['cipher'])[0]
-            _auth = pd.unique(group['auth'])[0]
-            _strength = group['ssi'].max()
-            _guess, _method = locate.interpolate(group, meta[capture.meta_csv_fieldnames[14]])
-            if not names[0]:
-                names = ('<blank>', names[1])
-            _rows.append([names[0], names[1], _guess, _channel, _encryption, _strength, _method])
+        with futures.ProcessPoolExecutor() as executor:
 
-        guess = pd.DataFrame(_rows, columns=_columns).sort_values('strength', ascending=False)
+            _guess_processes = {}
+
+            for names, group in _results_df.groupby(['ssid','bssid']):
+                _channel = group.groupby('channel').count()['test'].idxmax()
+                _encryption = pd.unique(group['encryption'])[0]
+                _cipher = pd.unique(group['cipher'])[0]
+                _auth = pd.unique(group['auth'])[0]
+                _strength = group['ssi'].max()
+                if not names[0]:
+                    names = ('<blank>', names[1])
+
+                _row = [names[0], names[1], _channel, _encryption, _strength]
+                _guess_processes[executor.submit(locate.interpolate, group, meta[capture.meta_csv_fieldnames[14]])] = _row
+
+            for future in futures.as_completed(_guess_processes):
+                _row = _guess_processes[future]
+                _guess, _method = future.result()
+                _rows.append(_row + [_method, _guess])
+
+            guess = pd.DataFrame(_rows, columns=_columns).sort_values('strength', ascending=False)
 
     return _beacon_count, _results_df, write_to_disk, guess
 
