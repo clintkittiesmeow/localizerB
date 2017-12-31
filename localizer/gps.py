@@ -129,12 +129,15 @@ class GPSThread(threading.Thread):
                                          fieldnames[6]: alt_err})
 
         # Finish calculating coordinate average
-        _avg_lat /= len(gps_sentences)
-        _avg_lon /= len(gps_sentences)
-        _avg_alt /= len(gps_sentences)
-        _avg_lat_err /= _lat_err_count
-        _avg_lon_err /= _lon_err_count
-        _avg_alt_err /= _alt_err_count
+        try:
+            _avg_lat /= len(gps_sentences)
+            _avg_lon /= len(gps_sentences)
+            _avg_alt /= len(gps_sentences)
+            _avg_lat_err /= _lat_err_count
+            _avg_lon_err /= _lon_err_count
+            _avg_alt_err /= _alt_err_count
+        except ZeroDivisionError:
+            pass
 
         # Confirm capture file contains gps coordinates
         if os.path.isfile(self._nmea_output) and os.path.isfile(self._csv_output):
