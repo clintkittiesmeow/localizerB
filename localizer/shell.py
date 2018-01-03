@@ -278,9 +278,13 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
             module_logger.info("Starting capture")
             try:
-                _capture_path, _meta = capture.capture(self._params, reset=self._params.bearing_magnetic)
-                _, _, _, _aps = process.process_capture(os.path.join(_capture_path, _meta), write_to_disk=False, guess=True, macs=self._params.macs)
-                print(_aps)
+                _result = capture.capture(self._params, reset=self._params.bearing_magnetic)
+                if _result:
+                    _capture_path, _meta = _result
+                    _, _, _, _aps = process.process_capture(os.path.join(_capture_path, _meta), write_to_disk=False, guess=True, macs=self._params.macs)
+                    print(_aps)
+                else:
+                    raise RuntimeError("Cappture failed")
 
             except RuntimeError as e:
                 module_logger.error(e)
