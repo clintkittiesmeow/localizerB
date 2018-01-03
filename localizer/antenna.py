@@ -20,7 +20,7 @@ RESET_RATE = 3
 steps_per_revolution = 200
 degrees_per_step = 360 / steps_per_revolution
 microsteps_per_step = 32
-microsteps_per_revolution = 400*32*2
+microsteps_per_revolution = steps_per_revolution*microsteps_per_step*2
 degrees_per_microstep = degrees_per_step / microsteps_per_step
 # Set up GPIO
 PUL_min = 18
