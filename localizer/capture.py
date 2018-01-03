@@ -149,6 +149,21 @@ def capture(params, pass_num=None, reset=None, fine=None):
     # Start threads
     _initialize_flag.set()
 
+    if not _capture_ready.is_set():
+        module_logger.info("Waiting for threads to start...")
+        try:
+            _delay_notified = False
+            _timeout_start = time.time()
+            while not _capture_ready.is_set():
+                if time.time() > _timeout_start + 5 and not _delay_notified:
+                    module_logger.error(
+                        "Waiting over 5s for capture to start... Press Ctrl-C to cancel")
+                    _delay_notified = True
+                time.sleep(.1)
+        except KeyboardInterrupt:
+            print('\nCapture canceled.')
+            return False
+
     # Print out timer to console
     for _ in trange(params.duration + 1, desc="{:<35}"
                     .format("Capturing packets for {}s".format((str(params.duration))))):
@@ -309,20 +324,10 @@ class CaptureThread(threading.Thread):
         proc = Popen(command, stdout=PIPE, stderr=PIPE)
 
         # Wait for process to output "File: ..." to stderr and then set flag for other threads
-        try:
-            _delay_notified = False
-            _timeout_start = time.time()
-            curr_line = ""
-            while not curr_line.startswith("File:"):
-                if time.time() > _timeout_start + 5 and not _delay_notified:
-                    module_logger.error(
-                        "Waiting over 5s for {} to start... Press Ctrl-C to cancel".format(self._pcap_util))
-                    _delay_notified = True
-                curr_line = proc.stderr.readline().decode()
-                time.sleep(.1)
-        except KeyboardInterrupt:
-            print('\nCapture canceled.')
-            return False
+        curr_line = ""
+        while not curr_line.startswith("File:"):
+            curr_line = proc.stderr.readline().decode()
+            time.sleep(.1)
 
         # Tell other threads to start
         self._start_flag.set()
