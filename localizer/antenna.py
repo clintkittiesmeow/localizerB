@@ -17,7 +17,7 @@ bearing_min = -360
 # Constants
 RESET_RATE = 3
 # Default number of steps per radian
-steps_per_revolution = 400
+steps_per_revolution = 200
 degrees_per_step = 360 / steps_per_revolution
 microsteps_per_step = 32
 microsteps_per_revolution = 400*32*2
