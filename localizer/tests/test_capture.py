@@ -17,40 +17,40 @@ class TestCapture(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        if localizer.params.iface is None:
-            localizer.params.iface = get_first_interface()
-        if localizer.params.path is None:
-            localizer.params.path = tempfile.gettempdir()
+        if localizer.meta.iface is None:
+            localizer.meta.iface = get_first_interface()
+        if localizer.meta.path is None:
+            localizer.meta.path = tempfile.gettempdir()
 
         # Speed up tests
-        localizer.params.duration = 5
+        localizer.meta.duration = 5
 
     def test_1_params_valid(self):
-        self.assertTrue(localizer.params.validate_capture(), msg=("Invalid parameters:\n"+str(localizer.params)))
+        self.assertTrue(localizer.meta.validate_capture(), msg=("Invalid parameters:\n" + str(localizer.meta)))
 
     def test_2_packet_capture(self):
         _response_queue = queue.Queue()
         _flag = Event()
         _dummyflag = Event()
-        _tmp_path = os.path.join(localizer.params.path, 'tmp.pcapng')
+        _tmp_path = os.path.join(localizer.meta.path, 'tmp.pcapng')
         _thread = CaptureThread(_response_queue,
                                 _flag,
                                 _dummyflag,
-                                localizer.params.iface,
-                                localizer.params.duration,
+                                localizer.meta.iface,
+                                localizer.meta.duration,
                                 _tmp_path)
         _thread.start()
         _flag.set()
 
         # Display timer
-        for sec in trange(localizer.params.duration, desc="Executing test for {}s"
-                .format((str(localizer.params.duration)))):
+        for sec in trange(localizer.meta.duration, desc="Executing test for {}s"
+                .format((str(localizer.meta.duration)))):
             time.sleep(1)
 
         num_rcv, num_drop = _response_queue.get()
         _start, _end = _response_queue.get()
 
-        self.assertEquals(math.floor(_end-_start-localizer.params.duration), 0, "Capture took too long (> 1s difference)")
+        self.assertEquals(math.floor(_end - _start - localizer.meta.duration), 0, "Capture took too long (> 1s difference)")
         print("Received {} packets (dropped {} packets)".format(num_rcv, num_drop))
         self.assertGreater(num_rcv, 0, "Failed to capture any packets")
         self.assertEqual(num_drop, 0, "Dropped packets")
@@ -73,7 +73,7 @@ if __name__ == "__main__":
                         help="Number of seconds to run the test",
                         type=int,
                         nargs='?',
-                        default=localizer.params.duration)
+                        default=localizer.meta.duration)
     parser.add_argument("iface",
                         help="Interface to test",
                         nargs='?',
@@ -85,9 +85,9 @@ if __name__ == "__main__":
     arguments = parser.parse_args()
 
     try:
-        localizer.params.duration = arguments.duration
-        localizer.params.iface = arguments.iface
-        localizer.params.path = arguments.path
+        localizer.meta.duration = arguments.duration
+        localizer.meta.iface = arguments.iface
+        localizer.meta.path = arguments.path
     except ValueError:
         print("Invalid parameters")
         exit(1)

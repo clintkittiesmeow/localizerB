@@ -15,16 +15,16 @@ class TestWifi(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        if localizer.params.iface is None:
-            localizer.params.iface = wifi.get_first_interface()
-        if localizer.params.path is None:
-            localizer.params.path = tempfile.gettempdir()
+        if localizer.meta.iface is None:
+            localizer.meta.iface = wifi.get_first_interface()
+        if localizer.meta.path is None:
+            localizer.meta.path = tempfile.gettempdir()
 
         # Speed up tests
-        localizer.params.duration = 5
+        localizer.meta.duration = 5
 
     def test_1_params_valid(self):
-        self.assertTrue(localizer.params.validate_wifi(), msg=("Invalid parameters:\n"+str(localizer.params)))
+        self.assertTrue(localizer.meta.validate_wifi(), msg=("Invalid parameters:\n" + str(localizer.meta)))
 
     def test_2_set_mode(self):
         # Get all the interfaces
@@ -44,21 +44,21 @@ class TestWifi(unittest.TestCase):
         _flag = Event()
         _response_queue = queue.Queue()
         _thread = wifi.ChannelHopper(_flag,
-                                     localizer.params.iface,
-                                     localizer.params.duration,
-                                     localizer.params.hop_int,
+                                     localizer.meta.iface,
+                                     localizer.meta.duration,
+                                     localizer.meta.hop_int,
                                      _response_queue)
         _thread.start()
         _flag.set()
 
-        _original_channel = wifi.get_channel(localizer.params.iface)
+        _original_channel = wifi.get_channel(localizer.meta.iface)
         _channel_changed = False
         # Check channel changes at least once during duration:
 
         # Display timer
-        with tqdm(range(localizer.params.duration)) as pbar:
+        with tqdm(range(localizer.meta.duration)) as pbar:
             for sec in pbar:
-                _current_channel = wifi.get_channel(localizer.params.iface)
+                _current_channel = wifi.get_channel(localizer.meta.iface)
                 if _current_channel != _original_channel and not _channel_changed:
                     _channel_changed = True
                 pbar.set_description("Current channel:{:>3}".format(_current_channel))
@@ -67,7 +67,7 @@ class TestWifi(unittest.TestCase):
         self.assertTrue(_channel_changed)
 
         _start, _end = _response_queue.get()
-        self.assertEquals(math.floor(_end-_start-localizer.params.duration), 0, "Thread took too long (> 1s difference)")
+        self.assertEquals(math.floor(_end - _start - localizer.meta.duration), 0, "Thread took too long (> 1s difference)")
 
         _thread.join()
 
@@ -81,7 +81,7 @@ if __name__ == "__main__":
                         help="Number of seconds to run the test",
                         type=int,
                         nargs='?',
-                        default=localizer.params.duration)
+                        default=localizer.meta.duration)
     parser.add_argument("iface",
                         help="Interface to test",
                         nargs='?',
@@ -90,13 +90,13 @@ if __name__ == "__main__":
                         help="Number of seconds between channel hops",
                         type=float,
                         nargs='?',
-                        default=localizer.params.hop_int)
+                        default=localizer.meta.hop_int)
     arguments = parser.parse_args()
 
     try:
-        localizer.params.duration = arguments.duration
-        localizer.params.iface = arguments.iface
-        localizer.params.hop_int = arguments.interval
+        localizer.meta.duration = arguments.duration
+        localizer.meta.iface = arguments.iface
+        localizer.meta.hop_int = arguments.interval
     except ValueError:
         print("Invalid parameters")
         exit(1)

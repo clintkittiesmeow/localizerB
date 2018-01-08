@@ -16,26 +16,26 @@ class TestAntenna(unittest.TestCase):
     def setUpClass(cls):
         # Speed up tests
 
-        localizer.params.duration = 5
+        localizer.meta.duration = 5
 
     def test_1_params_valid(self):
-        self.assertTrue(localizer.params.validate_antenna(), msg=("Invalid parameters:\n"+str(localizer.params)))
+        self.assertTrue(localizer.meta.validate_antenna(), msg=("Invalid parameters:\n" + str(localizer.meta)))
 
     def test_2_antenna_rotation(self):
         _response_queue = queue.Queue()
         _flag = Event()
         _thread = AntennaStepperThread(_response_queue,
                                        _flag,
-                                       localizer.params.duration,
-                                       localizer.params.degrees,
-                                       localizer.params.bearing)
+                                       localizer.meta.duration,
+                                       localizer.meta.degrees,
+                                       localizer.meta.bearing)
         _thread.start()
 
         _flag.set()
 
         # Display timer
-        for sec in trange(localizer.params.duration, desc="Executing test for {}s"
-                .format((str(localizer.params.duration)))):
+        for sec in trange(localizer.meta.duration, desc="Executing test for {}s"
+                .format((str(localizer.meta.duration)))):
             time.sleep(1)
 
         loop_start_time, loop_stop_time, loop_expected_time, loop_average_time = _response_queue.get()
@@ -62,23 +62,23 @@ if __name__ == "__main__":
                         help="Number of seconds to run the test",
                         type=int,
                         nargs='?',
-                        default=localizer.params.duration)
+                        default=localizer.meta.duration)
     parser.add_argument("degrees",
                         help="Number of degrees to rotate the antenna",
                         type=float,
                         nargs='?',
-                        default=localizer.params.degrees)
+                        default=localizer.meta.degrees)
     parser.add_argument("bearing",
                         help="Starting bearing of the antenna",
                         type=float,
                         nargs='?',
-                        default=localizer.params.bearing)
+                        default=localizer.meta.bearing)
     arguments = parser.parse_args()
 
     try:
-        localizer.params.duration = arguments.duration
-        localizer.params.degrees = arguments.degrees
-        localizer.params.bearing = arguments.bearing_magnetic
+        localizer.meta.duration = arguments.duration
+        localizer.meta.degrees = arguments.degrees
+        localizer.meta.bearing = arguments.bearing_magnetic
     except ValueError:
         print("Invalid parameters")
         exit(1)

@@ -5,7 +5,7 @@ import os
 import socketserver
 from threading import Thread
 
-from localizer.params import Params
+from localizer.meta import Params
 
 # Shared Variables
 debug = False

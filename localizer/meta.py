@@ -7,6 +7,34 @@ from geomag import WorldMagneticModel
 import localizer
 from localizer.wifi import OPTIMAL_BEACON_INT, STD_CHANNEL_DISTANCE
 
+meta_csv_fieldnames = ['name',
+                       'pass',
+                       'path',
+                       'iface',
+                       'duration',
+                       'hop_int',
+                       'pos_lat',
+                       'pos_lon',
+                       'pos_alt',
+                       'pos_lat_err',
+                       'pos_lon_err',
+                       'pos_alt_err',
+                       'start',
+                       'end',
+                       'degrees',
+                       'bearing',
+                       'pcap',
+                       'nmea',
+                       'coords']
+
+
+capture_suffixes = {"nmea": ".nmea",
+                    "pcap": ".pcapng",
+                    "meta": "-test.csv",
+                    "coords": "-gps.csv"}
+results_suffix = "-results.csv"
+TEST_SUFFIX = "-test.conf"
+
 
 class Params:
 

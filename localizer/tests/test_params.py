@@ -1,7 +1,7 @@
 import unittest
 from unittest import TestCase
 
-from localizer.params import Params
+from localizer.meta import Params
 
 
 class TestParams(TestCase):

@@ -8,10 +8,12 @@ from multiprocessing import Pool
 
 import pandas as pd
 import pyshark
+from dateutil import parser
 from geomag import WorldMagneticModel
 from tqdm import tqdm
 
-from localizer import capture, locate
+from localizer import locate
+from localizer.meta import meta_csv_fieldnames, capture_suffixes, results_suffix
 
 module_logger = logging.getLogger(__name__)
 
@@ -21,12 +23,11 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
     Process a captured data set
     :param meta_file:       path to meta file containing test results
     :param write_to_disk:   bool designating whether to write to disk
+    :param guess:           bool designating whether to return a table of guessed bearings for detected BSSIDs
     :param clockwise:       direction antenna was moving during the capture,
     :param macs:            list of macs to filter on
-    :param columns:         A list of the column names to filter
     :return: (_beacon_count, _results_path):
     """
-    from dateutil import parser
 
     _path = os.path.split(meta_file)[0]
 
@@ -41,8 +42,8 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
 
     # Correct bearing to compensate for magnetic declination
     _declination = WorldMagneticModel()\
-        .calc_mag_field(float(meta[capture.meta_csv_fieldnames[6]]),
-                        float(meta[capture.meta_csv_fieldnames[7]]),
+        .calc_mag_field(float(meta[meta_csv_fieldnames[6]]),
+                        float(meta[meta_csv_fieldnames[7]]),
                         date=date.fromtimestamp(float(meta["start"])))\
         .declination
 
@@ -70,7 +71,7 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
                         'alt_error']
 
     _rows = []
-    _pcap = os.path.join(_path, meta[capture.meta_csv_fieldnames[16]])
+    _pcap = os.path.join(_path, meta[meta_csv_fieldnames[16]])
 
     # Build filter string
     _filter = 'wlan[0] == 0x80'
@@ -182,10 +183,10 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
         pbearing_true = (pbearing_magnetic + _declination) % 360
 
         _rows.append([
-            meta[capture.meta_csv_fieldnames[0]],
-            meta[capture.meta_csv_fieldnames[1]],
-            meta[capture.meta_csv_fieldnames[4]],
-            meta[capture.meta_csv_fieldnames[5]],
+            meta[meta_csv_fieldnames[0]],
+            meta[meta_csv_fieldnames[1]],
+            meta[meta_csv_fieldnames[4]],
+            meta[meta_csv_fieldnames[5]],
             ptime,
             str(pbssid),
             str(pssid),
@@ -196,19 +197,19 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
             pchannel,
             pbearing_magnetic,
             pbearing_true,
-            meta[capture.meta_csv_fieldnames[6]],
-            meta[capture.meta_csv_fieldnames[7]],
-            meta[capture.meta_csv_fieldnames[8]],
-            meta[capture.meta_csv_fieldnames[9]],
-            meta[capture.meta_csv_fieldnames[10]],
-            meta[capture.meta_csv_fieldnames[11]],
+            meta[meta_csv_fieldnames[6]],
+            meta[meta_csv_fieldnames[7]],
+            meta[meta_csv_fieldnames[8]],
+            meta[meta_csv_fieldnames[9]],
+            meta[meta_csv_fieldnames[10]],
+            meta[meta_csv_fieldnames[11]],
         ])
 
         _beacon_count += 1
 
     _results_df = pd.DataFrame(_rows, columns=_default_columns)
     # Add mw column
-    _results_df.loc[:,'mw'] = dbm_to_mw(_results_df['ssi'])
+    _results_df.loc[:, 'mw'] = dbm_to_mw(_results_df['ssi'])
     module_logger.info("Completed processing {} beacons ({} failures)".format(_beacon_count, _beacon_failures))
 
     # If a path is given, write the results to a file
@@ -227,17 +228,17 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
 
             _guess_processes = {}
 
-            for names, group in _results_df.groupby(['ssid','bssid']):
+            for names, group in _results_df.groupby(['ssid', 'bssid']):
                 _channel = group.groupby('channel').count()['test'].idxmax()
                 _encryption = pd.unique(group['encryption'])[0]
-                _cipher = pd.unique(group['cipher'])[0]
-                _auth = pd.unique(group['auth'])[0]
+                # _cipher = pd.unique(group['cipher'])[0]
+                # _auth = pd.unique(group['auth'])[0]
                 _strength = group['ssi'].max()
                 if not names[0]:
                     names = ('<blank>', names[1])
 
                 _row = [names[0], names[1], _channel, _encryption, _strength]
-                _guess_processes[executor.submit(locate.interpolate, group, meta[capture.meta_csv_fieldnames[14]])] = _row
+                _guess_processes[executor.submit(locate.interpolate, group, meta[meta_csv_fieldnames[14]])] = _row
 
             for future in futures.as_completed(_guess_processes):
                 _row = _guess_processes[future]
@@ -259,7 +260,7 @@ def _check_capture_dir(files):
     :rtype: bool
     """
 
-    for suffix in capture.capture_suffixes.values():
+    for suffix in capture_suffixes.values():
         if not any(file.endswith(suffix) for file in files):
             return False
 
@@ -276,7 +277,7 @@ def _check_capture_processed(files):
     :rtype: bool
     """
 
-    if any(file.endswith(capture.results_suffix) for file in files):
+    if any(file.endswith(results_suffix) for file in files):
         return True
 
     return False
@@ -293,7 +294,7 @@ def _get_capture_meta(files):
     """
 
     for file in files:
-        if file.endswith(capture.capture_suffixes["meta"]):
+        if file.endswith(capture_suffixes["meta"]):
             return file
 
     return None
@@ -324,7 +325,7 @@ def process_directory(macs=None, clockwise=True):
             # Add meta file to list
             _file = _get_capture_meta(files)
             assert _file is not None
-            _tasks.append((os.path.join(root,_file), True, False, clockwise, macs))
+            _tasks.append((os.path.join(root, _file), True, False, clockwise, macs))
 
     print("Found {} unprocessed data sets".format(len(_tasks)))
 

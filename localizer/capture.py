@@ -11,37 +11,11 @@ import gpsd
 from tqdm import tqdm, trange
 
 from localizer import antenna, wifi, gps, process
+from localizer.meta import meta_csv_fieldnames, capture_suffixes
 
 OPTIMAL_CAPTURE_DURATION = 20
 
 module_logger = logging.getLogger(__name__)
-
-capture_suffixes = {"nmea": ".nmea",
-                    "pcap": ".pcapng",
-                    "meta": "-test.csv",
-                    "coords": "-gps.csv"}
-results_suffix = "-results.csv"
-TEST_SUFFIX = "-test.conf"
-
-meta_csv_fieldnames = ['name',
-                       'pass',
-                       'path',
-                       'iface',
-                       'duration',
-                       'hop_int',
-                       'pos_lat',
-                       'pos_lon',
-                       'pos_alt',
-                       'pos_lat_err',
-                       'pos_lon_err',
-                       'pos_alt_err',
-                       'start',
-                       'end',
-                       'degrees',
-                       'bearing',
-                       'pcap',
-                       'nmea',
-                       'coords']
 
 
 def capture(params, pass_num=None, reset=None, fine=None):
@@ -274,7 +248,6 @@ def capture(params, pass_num=None, reset=None, fine=None):
 
             # Recursively run capture
             module_logger.debug("Fine Capture:\n\tCurrent bearing: {}\n\tCapture Bearing: {}\n\tReset Bearing: {}".format(antenna.bearing_current, _p.bearing_magnetic, _reset))
-            #input("Press Enter to continue...")
             capture(_p, pass_num, _reset, _f)
 
     return _capture_path, _output_csv_test

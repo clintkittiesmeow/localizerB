@@ -11,7 +11,7 @@ from distutils.util import strtobool
 from tqdm import tqdm
 
 import localizer
-from localizer import wifi, capture, process, params, antenna
+from localizer import wifi, capture, process, meta, antenna
 
 module_logger = logging.getLogger(__name__)
 _file_handler = logging.FileHandler('localizer.log')
@@ -112,7 +112,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         super().__init__()
 
         self._modules = ["antenna", "gps", "capture", "wifi"]
-        self._params = params.Params()
+        self._params = meta.Params()
         if macs:
             self._params.macs = macs
         self._aps = {}
@@ -194,7 +194,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 self._params.macs = []
             else:
                 module_logger.error("Parameters require a value".format(split_args[0]))
-        elif split_args[0] in params.Params.VALID_PARAMS:
+        elif split_args[0] in meta.Params.VALID_PARAMS:
             try:
                 param = split_args[0]
                 value = split_args[1]
@@ -255,13 +255,13 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             print("Debug is {}".format(localizer.debug))
             print("HTTP server is {}".format(localizer.serve))
 
-    def do_list(self, args):
+    def do_list(self, _):
         """
         List any detected access points, their bearing, and whether they have been scanned
         """
 
         if self._aps:
-            pprint.print(self._aps)
+            pprint.pprint(self._aps)
         else:
             print("No detected aps, or scan hasn't been performed")
 
@@ -288,13 +288,11 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
             except RuntimeError as e:
                 module_logger.error(e)
-                return
 
-
-
-            # Restart http server if it is supposed to be on
-            if localizer.serve:
-                localizer.start_httpd()
+            finally:
+                # Restart http server if it is supposed to be on
+                if localizer.serve:
+                    localizer.start_httpd()
 
     @staticmethod
     def do_batch(_):
@@ -351,11 +349,11 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 if os.path.isfile(arg):
                     _filenames.append(arg)
                 else:
-                    if os.path.isfile(arg + capture.TEST_SUFFIX):
-                        _filenames.append(arg + capture.TEST_SUFFIX)
+                    if os.path.isfile(arg + meta.TEST_SUFFIX):
+                        _filenames.append(arg + meta.TEST_SUFFIX)
         else:
             # Get list of valid test batches in current directory
-            _filenames = [file for file in next(os.walk('.'))[2] if file.endswith(capture.TEST_SUFFIX)]
+            _filenames = [file for file in next(os.walk('.'))[2] if file.endswith(meta.TEST_SUFFIX)]
 
         print("Found {} batches".format(len(_filenames)))
 
@@ -371,8 +369,8 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
         logging.info("Imported {} batches".format(_count))
 
-    def complete_import(self, text, line, begidx, endidx):
-        return [file for file in next(os.walk('.'))[2] if file.startswith(text) and file.endswith(capture.TEST_SUFFIX)]
+    def complete_import(self, text, _, __, ___):
+        return [file for file in next(os.walk('.'))[2] if file.startswith(text) and file.endswith(meta.TEST_SUFFIX)]
 
     def do_capture(self, _):
         """
@@ -471,7 +469,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         :rtype: (str, int, list)
         """
 
-        _name = file[:file.find(capture.TEST_SUFFIX)]
+        _name = file[:file.find(meta.TEST_SUFFIX)]
         _tests = []
 
         config = configparser.ConfigParser()
@@ -494,90 +492,92 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         return _name, _passes, _tests
 
     @staticmethod
-    def _build_test(section, meta):
+    def _build_test(test_section, meta_section):
         """
         Use a dictionary from configparser to build a test object
 
-        :param section: A dictionary of key and values with test properties
-        :type section: dict
+        :param test_section: A dictionary of key and values with test properties
+        :type test_section: dict
+        :param meta_section: A dictionary of key and values with default properties
+        :type meta_section: dict
         :return: A Params object
         :rtype: Params()
         """
 
         try:
-            if 'iface' in section and section['iface']:
-                _iface = section['iface']
-            elif 'iface' in meta and meta['iface']:
-                _iface = meta['iface']
+            if 'iface' in test_section and test_section['iface']:
+                _iface = test_section['iface']
+            elif 'iface' in meta_section and meta_section['iface']:
+                _iface = meta_section['iface']
             else:
                 _iface = wifi.get_first_interface()
                 if not _iface:
                     raise ValueError("No valid interface provided or available on system")
 
-            if 'duration' in section:
-                _duration = section['duration']
-            elif 'duration' in meta:
-                _duration = meta['duration']
+            if 'duration' in test_section:
+                _duration = test_section['duration']
+            elif 'duration' in meta_section:
+                _duration = meta_section['duration']
             else:
                 _duration = capture.OPTIMAL_CAPTURE_DURATION
 
-            if 'degrees' in section:
-                _degrees = section['degrees']
-            elif 'degrees' in meta:
-                _degrees = meta['degrees']
+            if 'degrees' in test_section:
+                _degrees = test_section['degrees']
+            elif 'degrees' in meta_section:
+                _degrees = meta_section['degrees']
             else:
                 raise ValueError("No valid degrees")
 
-            if 'bearing' in section:
-                _bearing = section['bearing']
-            elif 'bearing' in meta:
-                _bearing = meta['bearing']
+            if 'bearing' in test_section:
+                _bearing = test_section['bearing']
+            elif 'bearing' in meta_section:
+                _bearing = meta_section['bearing']
             else:
                 raise ValueError("No valid bearing")
 
-            if 'hop_int' in section:
-                _hop_int = section['hop_int']
-            elif 'hop_int' in meta:
-                _hop_int = meta['hop_int']
+            if 'hop_int' in test_section:
+                _hop_int = test_section['hop_int']
+            elif 'hop_int' in meta_section:
+                _hop_int = meta_section['hop_int']
             else:
                 _hop_int = wifi.OPTIMAL_BEACON_INT
 
-            if 'hop_dist' in section:
-                _hop_dist = section['hop_dist']
-            elif 'hop_dist' in meta:
-                _hop_dist = meta['hop_dist']
+            if 'hop_dist' in test_section:
+                _hop_dist = test_section['hop_dist']
+            elif 'hop_dist' in meta_section:
+                _hop_dist = meta_section['hop_dist']
             else:
                 _hop_dist = wifi.STD_CHANNEL_DISTANCE
 
-            if 'test' in section:
-                _test = section['test']
-            elif 'test' in meta:
-                _test = meta['test']
+            if 'test' in test_section:
+                _test = test_section['test']
+            elif 'test' in meta_section:
+                _test = meta_section['test']
             else:
                 raise ValueError("No valid test")
 
-            if 'macs' in section:
-                _macs = section['macs'].split(',')
-            elif 'macs' in meta:
-                _macs = meta['macs'].split(',')
+            if 'macs' in test_section:
+                _macs = test_section['macs'].split(',')
+            elif 'macs' in meta_section:
+                _macs = meta_section['macs'].split(',')
             else:
                 _macs = None
 
-            if 'channel' in section:
-                _channel = section['channel']
-            elif 'channel' in meta:
-                _channel = meta['channel']
+            if 'channel' in test_section:
+                _channel = test_section['channel']
+            elif 'channel' in meta_section:
+                _channel = meta_section['channel']
             else:
                 _channel = None
 
-            if 'fine' in section:
-                _fine = tuple(section['fine'].split(','))
-            elif 'fine' in meta:
-                _fine = tuple(meta['fine'].split(','))
+            if 'fine' in test_section:
+                _fine = tuple(test_section['fine'].split(','))
+            elif 'fine' in meta_section:
+                _fine = tuple(meta_section['fine'].split(','))
             else:
                 _fine = None
 
-            test = localizer.params.Params(_iface, _duration, _degrees, _bearing, _hop_int, _hop_dist, _macs, _channel, _fine, _test)
+            test = localizer.meta.Params(_iface, _duration, _degrees, _bearing, _hop_int, _hop_dist, _macs, _channel, _fine, _test)
             # Validate iface
             module_logger.debug("Setting iface {}".format(_iface))
             test.iface = _iface

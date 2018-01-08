@@ -31,6 +31,7 @@ ENA_min = 24
 pi = pigpio.pi()
 
 if not pi.connected:
+    # Try to connect to remote instance (eg debugging in dev vm)
     pi = pigpio.pi('192.168.137.68', 8888)
 
 if not pi.connected:
@@ -150,15 +151,15 @@ class AntennaStepperThread(threading.Thread):
         _frequency = microsteps_per_revolution/duration
 
         if degrees > 6:
-            _ramp1 = 1 # degrees
+            _ramp1 = 1  # degrees
             _ramp1_frequency = _frequency / 4
             _ramp1_pulses = round(_ramp1 / degrees_per_microstep)
 
-            _ramp2 = 1 # degrees
+            _ramp2 = 1  # degrees
             _ramp2_frequency = _frequency / 2
             _ramp2_pulses = round(_ramp2 / degrees_per_microstep)
 
-            _ramp3 = 1 # degrees
+            _ramp3 = 1  # degrees
             _ramp3_frequency = 3 * _frequency / 4
             _ramp3_pulses = round(_ramp3 / degrees_per_microstep)
 
@@ -222,9 +223,9 @@ class AntennaStepperThread(threading.Thread):
         for i in range(length):
             frequency = ramp[i][0]
             micros = int(1000000 / frequency)
-            wf = []
-            wf.append(pigpio.pulse(1 << PUL_min, 0, micros))  # pulse on
-            wf.append(pigpio.pulse(0, 1 << PUL_min, micros))  # pulse off
+            wf1 = pigpio.pulse(1 << PUL_min, 0, micros)  # pulse on
+            wf2 = pigpio.pulse(0, 1 << PUL_min, micros)  # pulse off
+            wf = [wf1, wf2]
             pi.wave_add_generic(wf)
             wid[i] = pi.wave_create()
 

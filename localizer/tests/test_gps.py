@@ -17,14 +17,14 @@ class TestGPS(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        if localizer.params.path is None:
-            localizer.params.path = tempfile.gettempdir()
+        if localizer.meta.path is None:
+            localizer.meta.path = tempfile.gettempdir()
 
         # Speed up tests
-        localizer.params.duration = 5
+        localizer.meta.duration = 5
 
     def test_1_params_valid(self):
-        self.assertTrue(localizer.params.validate_gps(), msg=("Invalid parameters:\n"+str(localizer.params)))
+        self.assertTrue(localizer.meta.validate_gps(), msg=("Invalid parameters:\n" + str(localizer.meta)))
 
     def test_2_gps_enabled(self):
         gpsd.connect()
@@ -36,21 +36,21 @@ class TestGPS(unittest.TestCase):
     def test_3_gps_capture(self):
         _response_queue = queue.Queue()
         _flag = Event()
-        _tmp_nmea = os.path.join(localizer.params.path, 'tmp.nmea')
-        _tmp_csv = os.path.join(localizer.params.path, 'tmp.csv')
-        _thread = gps.GPSThread(_response_queue, _flag, localizer.params.duration, _tmp_nmea, _tmp_csv)
+        _tmp_nmea = os.path.join(localizer.meta.path, 'tmp.nmea')
+        _tmp_csv = os.path.join(localizer.meta.path, 'tmp.csv')
+        _thread = gps.GPSThread(_response_queue, _flag, localizer.meta.duration, _tmp_nmea, _tmp_csv)
         _thread.start()
         _flag.set()
 
         # Display timer
-        for sec in trange(localizer.params.duration, desc="Executing test for {}s"
-                .format((str(localizer.params.duration)))):
+        for sec in trange(localizer.meta.duration, desc="Executing test for {}s"
+                .format((str(localizer.meta.duration)))):
             time.sleep(1)
 
         _avg_lat, _avg_lon, _avg_alt, _avg_lat_err, _avg_lon_err, _avg_alt_err = _response_queue.get()
         _start, _end = _response_queue.get()
 
-        self.assertEquals(math.floor(_end-_start-localizer.params.duration), 0, "GPS Capture took too long (> 1s difference)")
+        self.assertEquals(math.floor(_end - _start - localizer.meta.duration), 0, "GPS Capture took too long (> 1s difference)")
 
         self.assertNotEqual(_avg_lat, 0, "Failed to get latitude")
         self.assertNotEqual(_avg_lon, 0, "Failed to get longitude")
@@ -75,7 +75,7 @@ if __name__ == "__main__":
                         help="Number of seconds to run the test",
                         type=int,
                         nargs='?',
-                        default=localizer.params.duration)
+                        default=localizer.meta.duration)
     parser.add_argument("path",
                         help="Temporary path to write test output",
                         nargs='?',
@@ -83,8 +83,8 @@ if __name__ == "__main__":
     arguments = parser.parse_args()
 
     try:
-        localizer.params.duration = arguments.duration
-        localizer.params.path = arguments.path
+        localizer.meta.duration = arguments.duration
+        localizer.meta.path = arguments.path
     except ValueError:
         print("Invalid parameters")
         exit(1)
