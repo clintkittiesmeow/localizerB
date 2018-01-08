@@ -1,2 +1,2 @@
-"name","pass","path","iface","duration","hop_int","pos_lat","pos_lon","pos_alt","pos_lat_err","pos_lon_err","pos_alt_err","start","end","degrees","bearing","pcap","nmea","coords"
-"capture-1","08","capture-1/08/RESEARCH_MULLINS_4_0016b658f30d","wlan0","10","0.0","39.782641509399994","-84.0830652388","299.3487","0.0","0.0","0.0","1514577648.279409","1514577658.2787218","360.0","71.0","20171229-15-00-47.pcapng","20171229-15-00-47.nmea","20171229-15-00-47-gps.csv"
+"name","pass","path","iface","duration","hop_int","pos_lat","pos_lon","pos_alt","pos_lat_err","pos_lon_err","pos_alt_err","start","end","degrees","bearing","pcap","nmea","coords","focused"
+"capture-1","08","capture-1/08/RESEARCH_MULLINS_4_0016b658f30d","wlan0","10","0.0","39.782641509399994","-84.0830652388","299.3487","0.0","0.0","0.0","1514577648.279409","1514577658.2787218","360.0","71.0","20171229-15-00-47.pcapng","20171229-15-00-47.nmea","20171229-15-00-47-gps.csv","00:16:b6:58:f3:0d"

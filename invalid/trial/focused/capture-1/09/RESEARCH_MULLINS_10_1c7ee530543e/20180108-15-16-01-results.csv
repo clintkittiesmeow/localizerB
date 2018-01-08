@@ -1,0 +1,2 @@
+test,pass,duration,hop-rate,timestamp,bssid,ssid,encryption,cipher,auth,ssi,channel,bearing_magnetic,bearing_true,lat,lon,alt,lat_err,lon_error,alt_error,focused,mw
+capture-1,09,10,0.0,1514577782.269847,60:38:e0:06:34:ac,RESEARCH_MULLINS_8,WPA,CCMP,,-53,8,154.08388714655814,147.79193590461418,39.7826287764,-84.08304914600001,299.79659999999996,0.0,0.0,0.0,1c:7e:e5:30:54:3e,5.011872336272725e-06
