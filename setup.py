@@ -18,7 +18,6 @@ setup(
     author='Bradford',
     packages=['localizer'],
     install_requires=[
-        'RPi.GPIO',
         'pyshark',
         'gpsd-py3',
         'tqdm',
