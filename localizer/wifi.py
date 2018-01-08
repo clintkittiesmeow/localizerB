@@ -9,17 +9,7 @@ from subprocess import call, run, PIPE, CalledProcessError
 from tqdm import tqdm
 
 import localizer
-
-# Global Constants
-IEEE80211bg = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-IEEE80211bg_intl = IEEE80211bg + [12, 13, 14]
-IEEE80211a = [36, 40, 44, 48, 52, 56, 60, 64, 149, 153, 157, 161]
-IEEE80211bga = IEEE80211bg + IEEE80211a
-IEEE80211bga_intl = IEEE80211bg_intl + IEEE80211a
-TU = 1024/1000000  # 1 TU = 1024 usec https://en.wikipedia.org/wiki/TU_(Time_Unit)
-STD_BEACON_INT = 100*TU
-OPTIMAL_BEACON_INT = 179*TU
-STD_CHANNEL_DISTANCE = 2
+from localizer.meta import OPTIMAL_BEACON_INT, STD_CHANNEL_DISTANCE, IEEE80211bg
 
 module_logger = logging.getLogger(__name__)
 
@@ -212,7 +202,6 @@ class ChannelHopper(threading.Thread):
         self._init_chan = init_chan
         if self._init_chan and self._init_chan not in self._channels:
             raise ValueError("If you specify an initial channel, it must be in the list of channels")
-
 
         # Ensure we are in monitor mode
         if get_interface_mode(self._iface) != "monitor":
