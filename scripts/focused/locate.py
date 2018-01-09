@@ -1,19 +1,15 @@
 import numpy as np
 import pandas as pd
 
-def locate_random(series):
-    return np.random.randint(-180,180)
-    
-    
 def locate_naive(series):
     if len(series) > 360:
         series = series[np.arange(0,360)]
         
     return series.idxmax()
-        
+      
 
 def locate_interpolate(series_concat, method, plot=False, test=None, bssid=None):
-    series_inter = series_concat.interpolate(method=method)[np.arange(0,360)]
+    series_inter = series_concat.interpolate(method=method)
     
     guess = series_inter.idxmax()
     
@@ -25,46 +21,38 @@ def locate_interpolate(series_concat, method, plot=False, test=None, bssid=None)
         bearing = capmap.get_bearing(test, bssid)      
         ax.axvline(x=guess, color='orange')
         ax.axvline(x=bearing, color='green')
-        naive = locate_naive(series_mid)
-        ax.axvline(x=naive, color='purple')
-        print(f"Guess: {guess}, Naive: {naive}, True: {bearing}")
+        print(f"Guess: {guess}, True: {bearing}")
     
     return guess
 
 
-def locate_method_helper(method, series_list):
+def locate_method_helper(method, width, series_list):
     _results = []
-    for param in series_list:
-        series = param[-1]
-        bearing = param[-2]
-        try:
-            _guess = error_methods[method](series)
-        except ValueError:
-            _fallback_method = 'naive'
-            param[-3] = method
-            _guess = error_methods[_fallback_method](series)
-        finally:
-            _error = (_guess - bearing)%360
-            # Reflect modular distance - as error gets larger than 180, it's actually getting closer to truth
-            if np.abs(_error) > 180:
-                _error = -((360 - _error) % 360)
-            _results.append(param[:-2] + [method, _error])
+    for params in series_list:
+        series = params[-1]
+        bearing = params[-2]
+        guess_orig = params[3]
+        center = 180
+        offset = center - guess_orig
+        
+        # set index
+        series.index = (series.index + offset) % 360
+        series.sort_index(inplace=True)
+        left = center + width[0]
+        right = center + width[1]
+        series_narrow = series[np.arange(left,right)]
+        if len(series_narrow.dropna()) == 1:
+            _guess = locate_naive(series_narrow) - offset
+        elif len(series_narrow.dropna()>1):
+            _guess = locate_interpolate(series_narrow, method) - offset
+        else:
+            # maximum error if there are no beacons captured - penalize too-narrow
+            _guess = 180 + bearing
+                 
+        _error = (_guess - bearing)%360
+        # Reflect modular distance - as error gets larger than 180, it's actually getting closer to truth
+        if np.abs(_error) > 180:
+            _error = -((360 - _error) % 360)
+        _results.append(params[:-2] + [width, _error])
     
     return _results
-
-
-error_methods = {
-    'naive': locate_naive, 
-    'quadratic': lambda series: locate_interpolate(series, 'quadratic'), 
-    'cubic': lambda series: locate_interpolate(series, 'cubic'),
-    'linear': lambda series: locate_interpolate(series, 'linear'),
-    'slinear': lambda series: locate_interpolate(series, 'slinear'),
-    'barycentric': lambda series: locate_interpolate(series, 'barycentric'),
-    'krogh': lambda series: locate_interpolate(series, 'krogh'),
-    'piecewise_polynomial': lambda series: locate_interpolate(series, 'piecewise_polynomial'),
-    'from_derivatives': lambda series: locate_interpolate(series, 'from_derivatives'),
-    'pchip': lambda series: locate_interpolate(series, 'pchip'),
-    'akima': lambda series: locate_interpolate(series, 'akima'),
-    'random': lambda series: locate_random(series)
-}
-
