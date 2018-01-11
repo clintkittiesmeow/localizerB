@@ -1,0 +1,2 @@
+"name","pass","path","iface","duration","hop_int","pos_lat","pos_lon","pos_alt","pos_lat_err","pos_lon_err","pos_alt_err","start","end","degrees","bearing","pcap","nmea","coords"
+"capture-1-2","03","capture-1-2/03/RESEARCH_MULLINS_7_6038e00634e8","wlan0","10","0.0","39.782635551999995","-84.08307141800002","306.70699999999994","0.0","0.0","0.0","1514763780.1915827","1514763790.4217148","360.0","100.0","20171231-18-42-59.pcapng","20171231-18-42-59.nmea","20171231-18-42-59-gps.csv"
