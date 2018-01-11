@@ -18,7 +18,16 @@ OPTIMAL_CAPTURE_DURATION = 20
 module_logger = logging.getLogger(__name__)
 
 
-def capture(params, pass_num=None, reset=None, fine=None):
+def capture(params, pass_num=None, reset=None, focused=None):
+    # Create capture file names
+    _capture_prefix = time.strftime('%Y%m%d-%H-%M-%S')
+    _capture_file_pcap = _capture_prefix + capture_suffixes["pcap"]
+    _capture_file_gps = _capture_prefix + capture_suffixes["nmea"]
+    _output_csv_gps = _capture_prefix + capture_suffixes["coords"]
+    _output_csv_test = _capture_prefix + capture_suffixes["meta"]
+    _output_csv_guess = _capture_prefix + capture_suffixes["guess"] if focused else None
+
+    # Build capture path and validate directory
     # Set up working folder
     os.umask(0)
     _capture_path = params.test
@@ -26,8 +35,8 @@ def capture(params, pass_num=None, reset=None, fine=None):
     if pass_num is not None:
         _capture_path = os.path.join(_capture_path, pass_num)
 
-    if fine is not None:
-        _capture_path = os.path.join(_capture_path, fine)
+    if focused is not None:
+        _capture_path = os.path.join(_capture_path, focused.replace(':', '').replace('-', ''))
 
     try:
         os.makedirs(_capture_path, exist_ok=True)
@@ -40,12 +49,6 @@ def capture(params, pass_num=None, reset=None, fine=None):
     if not os.access(_capture_path, os.W_OK | os.X_OK):
         module_logger.error("Could not write to the working directory {}".format(_capture_path))
         raise OSError()
-
-    # Create capture file names
-    _capture_file_pcap = time.strftime('%Y%m%d-%H-%M-%S') + capture_suffixes["pcap"]
-    _capture_file_gps = time.strftime('%Y%m%d-%H-%M-%S') + capture_suffixes["nmea"]
-    _output_csv_gps = time.strftime('%Y%m%d-%H-%M-%S') + capture_suffixes["coords"]
-    _output_csv_test = time.strftime('%Y%m%d-%H-%M-%S') + capture_suffixes["meta"]
 
     # Threading sync flag
     _initialize_flag = threading.Event()
@@ -183,15 +186,19 @@ def capture(params, pass_num=None, reset=None, fine=None):
                           meta_csv_fieldnames[15]: params.bearing_magnetic,
                           meta_csv_fieldnames[16]: _capture_file_pcap,
                           meta_csv_fieldnames[17]: _capture_file_gps,
-                          meta_csv_fieldnames[18]: _output_csv_gps}
+                          meta_csv_fieldnames[18]: _output_csv_gps,
+                          meta_csv_fieldnames[19]: focused,
+                          meta_csv_fieldnames[20]: _output_csv_guess,
+                          }
         _test_csv_writer.writerow(_test_csv_data)
 
     # Perform processing while we wait for threads to finish:
     _guesses = None
-    if params.fine:
+    if params.focused:
         module_logger.info("Processing capture")
         _meta_path = os.path.join(_capture_path, _output_csv_test)
         _, _, _, _guesses = process.process_capture(_meta_path, write_to_disk=True, guess=True, clockwise=True, macs=params.macs)
+        _guesses.to_csv(os.path.join(_capture_path, _output_csv_guess), sep=',')
 
     # Show progress bar of joining threads
     with tqdm(total=4, desc="{:<35}".format("Waiting for threads")) as pbar:
@@ -213,17 +220,17 @@ def capture(params, pass_num=None, reset=None, fine=None):
         pbar.refresh()
         _capture_thread.join()
 
-    # Perform fine-level captures
-    if params.fine and _guesses is not None and len(_guesses):
-        module_logger.info("Performing fine captures on {} access points:\n{}".format(len(_guesses), _guesses))
-        _width = params.fine[0]
-        _duration = params.fine[1]
+    # Perform focused-level captures
+    if params.focused and _guesses is not None and len(_guesses):
+        module_logger.info("Performing focused captures on {} access points:\n{}".format(len(_guesses), _guesses))
+        _width = params.focused[0]
+        _duration = params.focused[1]
 
         _params = []
 
         for i, row in _guesses.iterrows():
             _bearing_guess = row.bearing
-            _fine = row.ssid + "_" + row.bssid.replace(':', '').replace('-', '')
+            _focused = row.bssid
 
             _new_bearing = _bearing_guess - _width/2
             _new_degrees = _width
@@ -234,8 +241,8 @@ def capture(params, pass_num=None, reset=None, fine=None):
             _param.duration = _duration
             _param.channel = row.channel
             _param.hop_int = 0
-            _param.fine = None
-            _params.append((_param, _fine))
+            _param.focused = None
+            _params.append((_param, _focused))
 
         # Try to set the next bearing to speed up capture
         for i, val in enumerate(_params):
@@ -247,7 +254,7 @@ def capture(params, pass_num=None, reset=None, fine=None):
                 _reset = params.bearing_magnetic
 
             # Recursively run capture
-            module_logger.debug("Fine Capture:\n\tCurrent bearing: {}\n\tCapture Bearing: {}\n\tReset Bearing: {}".format(antenna.bearing_current, _p.bearing_magnetic, _reset))
+            module_logger.debug("Focused Capture:\n\tCurrent bearing: {}\n\tCapture Bearing: {}\n\tReset Bearing: {}".format(antenna.bearing_current, _p.bearing_magnetic, _reset))
             capture(_p, pass_num, _reset, _f)
 
     return _capture_path, _output_csv_test

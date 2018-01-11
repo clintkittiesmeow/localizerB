@@ -349,11 +349,11 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 if os.path.isfile(arg):
                     _filenames.append(arg)
                 else:
-                    if os.path.isfile(arg + meta.TEST_SUFFIX):
-                        _filenames.append(arg + meta.TEST_SUFFIX)
+                    if os.path.isfile(arg + meta.capture_suffixes['test']):
+                        _filenames.append(arg + meta.capture_suffixes['test'])
         else:
             # Get list of valid test batches in current directory
-            _filenames = [file for file in next(os.walk('.'))[2] if file.endswith(meta.TEST_SUFFIX)]
+            _filenames = [file for file in next(os.walk('.'))[2] if file.endswith(meta.capture_suffixes['test'])]
 
         print("Found {} batches".format(len(_filenames)))
 
@@ -370,7 +370,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         logging.info("Imported {} batches".format(_count))
 
     def complete_import(self, text, _, __, ___):
-        return [file for file in next(os.walk('.'))[2] if file.startswith(text) and file.endswith(meta.TEST_SUFFIX)]
+        return [file for file in next(os.walk('.'))[2] if file.startswith(text) and file.endswith(meta.capture_suffixes['test'])]
 
     def do_capture(self, _):
         """
@@ -447,9 +447,9 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 _test_overhead = antenna.RESET_RATE + 2
                 _time_temp = ((test.duration * _passes) + _test_overhead)
 
-                if test.fine:
+                if test.focused:
                     _nmacs = len(test.macs)
-                    _deg, _dur = test.fine
+                    _deg, _dur = test.focused
                     _time_fine = (_deg * _dur) / 360 + _test_overhead
                     _time_fine *= _nmacs
                     _time_temp += _time_fine
@@ -469,7 +469,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         :rtype: (str, int, list)
         """
 
-        _name = file[:file.find(meta.TEST_SUFFIX)]
+        _name = file[:file.find(meta.capture_suffixes['test'])]
         _tests = []
 
         config = configparser.ConfigParser()
@@ -570,14 +570,14 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             else:
                 _channel = None
 
-            if 'fine' in test_section:
-                _fine = tuple(test_section['fine'].split(','))
-            elif 'fine' in meta_section:
-                _fine = tuple(meta_section['fine'].split(','))
+            if 'focused' in test_section:
+                _focused = tuple(test_section['focused'].split(','))
+            elif 'focused' in meta_section:
+                _focused = tuple(meta_section['focused'].split(','))
             else:
-                _fine = None
+                _focused = None
 
-            test = localizer.meta.Params(_iface, _duration, _degrees, _bearing, _hop_int, _hop_dist, _macs, _channel, _fine, _test)
+            test = localizer.meta.Params(_iface, _duration, _degrees, _bearing, _hop_int, _hop_dist, _macs, _channel, _focused, _test)
             # Validate iface
             module_logger.debug("Setting iface {}".format(_iface))
             test.iface = _iface

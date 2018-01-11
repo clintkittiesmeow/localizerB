@@ -36,15 +36,26 @@ meta_csv_fieldnames = ['name',
                        'bearing',
                        'pcap',
                        'nmea',
-                       'coords']
+                       'coords',
+                       'focused',
+                       'guess',
+                       ]
 
 
-capture_suffixes = {"nmea": ".nmea",
+required_suffixes = {"nmea": ".nmea",
                     "pcap": ".pcapng",
                     "meta": "-test.csv",
-                    "coords": "-gps.csv"}
-results_suffix = "-results.csv"
-TEST_SUFFIX = "-test.conf"
+                    "coords": "-gps.csv",
+                     }
+
+
+capture_suffixes = {
+                    "guess": "-guess.csv",
+                    "results": "-results.csv",
+                    "test": "-test.conf",
+                    }
+
+capture_suffixes.update(required_suffixes)
 
 
 class Params:
@@ -58,7 +69,7 @@ class Params:
                     "mac",
                     "macs",
                     "channel",
-                    "fine",
+                    "focused",
                     "test"]
 
     def __init__(self,
@@ -70,11 +81,11 @@ class Params:
                  hop_dist=STD_CHANNEL_DISTANCE,
                  macs=None,
                  channel=None,
-                 fine=None,
+                 focused=None,
                  test=time.strftime('%Y%m%d-%H-%M-%S')):
 
         # Default Values
-        self._duration = self._degrees = self._bearing = self._hop_int = self._hop_dist = self._macs = self._channel = self._fine = self._test = None
+        self._duration = self._degrees = self._bearing = self._hop_int = self._hop_dist = self._macs = self._channel = self._focused = self._test = None
         self._iface = iface
         self.duration = duration
         self.degrees = degrees
@@ -83,7 +94,7 @@ class Params:
         self.hop_dist = hop_dist
         self.macs = macs
         self.channel = channel
-        self.fine = fine
+        self.focused = focused
         self.test = test
 
     @property
@@ -222,14 +233,14 @@ class Params:
             raise ValueError("Invalid channel: {}; should be an integer > 0".format(value))
 
     @property
-    def fine(self):
-        return self._fine
+    def focused(self):
+        return self._focused
 
-    @fine.setter
-    def fine(self, value):
+    @focused.setter
+    def focused(self, value):
         try:
             if value is None:
-                self._fine = value
+                self._focused = value
             else:
                 if not isinstance(value, tuple) or len(value) != 2:
                     raise ValueError()
@@ -241,7 +252,7 @@ class Params:
                     if _duration <= 0:
                         raise ValueError()
 
-                    self._fine = (_degrees, _duration)
+                    self._focused = (_degrees, _duration)
         except ValueError:
             raise ValueError("Invalid fine: {}; should be a tuple of length 2 (degrees[width], duration > 0)".format(value))
 
@@ -309,6 +320,6 @@ class Params:
             self.hop_dist,
             deepcopy(self.macs),
             self.channel,
-            deepcopy(self.fine),
+            deepcopy(self.focused),
             self.test
         )

@@ -4,7 +4,6 @@ import os
 import time
 from concurrent import futures
 from datetime import date
-from multiprocessing import Pool
 
 import pandas as pd
 import pyshark
@@ -13,7 +12,7 @@ from geomag import WorldMagneticModel
 from tqdm import tqdm
 
 from localizer import locate
-from localizer.meta import meta_csv_fieldnames, capture_suffixes, results_suffix
+from localizer.meta import meta_csv_fieldnames, capture_suffixes, required_suffixes
 
 module_logger = logging.getLogger(__name__)
 
@@ -68,13 +67,17 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
                         'alt',
                         'lat_err',
                         'lon_error',
-                        'alt_error']
+                        'alt_error',
+                        ]
 
     _rows = []
     _pcap = os.path.join(_path, meta[meta_csv_fieldnames[16]])
 
     # Build filter string
     _filter = 'wlan[0] == 0x80'
+    # Override any provide mac filter list if we have one in the test metadata
+    if meta_csv_fieldnames[19] in meta and meta[meta_csv_fieldnames[19]]:
+        macs = [meta[meta_csv_fieldnames[19]]]
     if macs:
         _mac_string = ' and ('
         _mac_strings = ['wlan.bssid == ' + mac for mac in macs]
@@ -212,13 +215,6 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
     _results_df.loc[:, 'mw'] = dbm_to_mw(_results_df['ssi'])
     module_logger.info("Completed processing {} beacons ({} failures)".format(_beacon_count, _beacon_failures))
 
-    # If a path is given, write the results to a file
-    if write_to_disk:
-        _results_path = os.path.join(_path, time.strftime('%Y%m%d-%H-%M-%S') + "-results" + ".csv")
-        _results_df.to_csv(_results_path, sep=',', index=False)
-        module_logger.info("Wrote results to {}".format(_results_path))
-        write_to_disk = _results_path
-
     # If asked to guess, return list of bssids and a guess as to their bearing
     if guess:
         _columns = ['ssid', 'bssid', 'channel', 'security', 'strength', 'method', 'bearing']
@@ -247,6 +243,13 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
 
             guess = pd.DataFrame(_rows, columns=_columns).sort_values('strength', ascending=False)
 
+    # If a path is given, write the results to a file
+    if write_to_disk:
+        _results_path = os.path.join(_path, time.strftime('%Y%m%d-%H-%M-%S') + "-results" + ".csv")
+        _results_df.to_csv(_results_path, sep=',', index=False)
+        module_logger.info("Wrote results to {}".format(_results_path))
+        write_to_disk = _results_path
+
     return _beacon_count, _results_df, write_to_disk, guess
 
 
@@ -260,7 +263,7 @@ def _check_capture_dir(files):
     :rtype: bool
     """
 
-    for suffix in capture_suffixes.values():
+    for suffix in required_suffixes.values():
         if not any(file.endswith(suffix) for file in files):
             return False
 
@@ -277,7 +280,7 @@ def _check_capture_processed(files):
     :rtype: bool
     """
 
-    if any(file.endswith(results_suffix) for file in files):
+    if any(file.endswith(capture_suffixes["results"]) for file in files):
         return True
 
     return False
@@ -312,34 +315,36 @@ def process_directory(macs=None, clockwise=True):
     :rtype: int
     """
 
-    _tasks = []
-
     # Walk through each subdirectory of working directory
     module_logger.info("Building list of directories to process")
-    for root, dirs, files in os.walk(os.getcwd()):
-        if not _check_capture_dir(files):
-            continue
-        elif _check_capture_processed(files):
-            continue
-        else:
-            # Add meta file to list
-            _file = _get_capture_meta(files)
-            assert _file is not None
-            _tasks.append((os.path.join(root, _file), True, False, clockwise, macs))
 
-    print("Found {} unprocessed data sets".format(len(_tasks)))
+    with futures.ProcessPoolExecutor() as executor:
 
-    if _tasks:
-        with Pool(processes=4) as pool:
-            _results = 0
-            for result in tqdm(pool.imap_unordered(process_capture_helper, _tasks), total=len(_tasks)):
-                _results += result[0]
+        _processes = {}
+        _results = 0
 
-            print("Processed {} packets in {} directories".format(_results, len(_tasks)))
+        for root, dirs, files in os.walk(os.getcwd()):
+            if not _check_capture_dir(files):
+                continue
+            elif _check_capture_processed(files):
+                continue
+            else:
+                # Add meta file to list
+                _file = _get_capture_meta(files)
+                assert _file is not None
+                _path = os.path.join(root, _file)
+                _processes[executor.submit(process_capture, _path, True, False, clockwise, macs)] = _path
 
+        print("Found {} unprocessed data sets".format(len(_processes)))
 
-def process_capture_helper(tup):
-    return process_capture(*tup)
+        if _processes:
+            with tqdm(total = len(_processes), desc = "Processing") as _pbar:
+                for future in futures.as_completed(_processes):
+                    _beacon_count, _, _, _ = future.result()
+                    _results += _beacon_count
+                    _pbar.update(1)
+
+                print("Processed {} packets in {} directories".format(_results, len(_processes)))
 
 
 def dbm_to_mw(dbm):
