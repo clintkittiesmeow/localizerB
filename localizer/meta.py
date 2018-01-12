@@ -117,7 +117,7 @@ class Params:
     def duration(self, value):
         try:
             if not isinstance(value, int):
-                value = int(value)
+                value = int(float(value))
             if value < 0:
                 raise ValueError()
             self._duration = value
@@ -132,9 +132,9 @@ class Params:
     def degrees(self, value):
         try:
             if not isinstance(value, int):
-                value = int(value)
+                value = int(float(value))
             self._degrees = value
-        except ValueError:
+        except ValueError as e:
             raise ValueError("Invalid degrees: {}; should be an int".format(value))
 
     @property
@@ -145,7 +145,7 @@ class Params:
     def bearing_magnetic(self, value):
         try:
             if not isinstance(value, int):
-                value = int(value)
+                value = int(float(value))
             self._bearing = value % 360
         except ValueError:
             raise ValueError("Invalid bearing: {}; should be an int".format(value))

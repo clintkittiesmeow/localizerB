@@ -39,7 +39,7 @@ pi = pigpio.pi()
 
 if not pi.connected:
     # Try to connect to remote instance (eg debugging in dev vm)
-    pi = pigpio.pi('192.168.137.68', 8888)
+    pi = pigpio.pi('192.168.137.27', 8888)
 
 if not pi.connected:
     raise Exception("Need to have pigpiod running")
