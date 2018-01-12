@@ -202,8 +202,12 @@ class AntennaStepperThread(threading.Thread):
         while time.time() < _time_end:
             time.sleep(.1)
 
-        for wid in _wid:
-            pi.wave_delete(wid)
+        try:
+            for wid in _wid:
+                if wid:
+                    pi.wave_delete(wid)
+        except pigpio.error as e:
+            module_logger.error(e)
 
         return _time_start, _time_end
 
