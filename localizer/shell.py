@@ -458,6 +458,17 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
         return datetime.timedelta(seconds=_time)
 
+    # def _get_remaining_time(self):
+    #
+    #     global _runtimes, last_time, num_tests, test_position
+    #
+    #     if not _runtimes:
+    #         _runtimes.append(antenna.RESET_RATE + 4)
+    #     else:
+    #         _runtimes.append(time.time() - last_time)
+    #
+    #     last_time = time.time()
+
     @staticmethod
     def _parse_batch(file):
         """
