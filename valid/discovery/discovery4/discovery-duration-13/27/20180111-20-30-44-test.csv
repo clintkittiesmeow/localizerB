@@ -1,0 +1,2 @@
+"name","pass","path","iface","duration","hop_int","pos_lat","pos_lon","pos_alt","pos_lat_err","pos_lon_err","pos_alt_err","start","end","degrees","bearing","pcap","nmea","coords","focused","guess"
+"discovery-duration-13","27","discovery-duration-13/27","wlan0","13","0.0","39.78263745046154","-84.08306956669232","304.89061538461544","0.0","0.0","0.0","1515720645.7306702","1515720659.041644","360.0","0.0","20180111-20-30-44.pcapng","20180111-20-30-44.nmea","20180111-20-30-44-gps.csv","",""
