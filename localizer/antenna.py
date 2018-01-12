@@ -18,9 +18,9 @@ bearing_min = -360
 # Reset Rate Curve
 # From https://mycurvefit.com/
 #           0                 20
-#         360                  4
 #          90                  7
 #         180                  5
+#         360                  4
 get_reset_rate = lambda x: 3.235294 + (20 - 3.235294) / (1 + (x / 34.68111) ** 1.29956)
 RESET_RATE = [get_reset_rate(x) for x in range(1080)]
 # Default number of steps per radian

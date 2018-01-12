@@ -75,8 +75,8 @@ class Params:
     def __init__(self,
                  iface=None,
                  duration=15,
-                 degrees=360.0,
-                 bearing=0.0,
+                 degrees=360,
+                 bearing=0,
                  hop_int=OPTIMAL_BEACON_INT,
                  hop_dist=STD_CHANNEL_DISTANCE,
                  macs=None,
@@ -131,11 +131,11 @@ class Params:
     @degrees.setter
     def degrees(self, value):
         try:
-            if not isinstance(value, float):
-                value = float(value)
+            if not isinstance(value, int):
+                value = int(value)
             self._degrees = value
         except ValueError:
-            raise ValueError("Invalid degrees: {}; should be a float".format(value))
+            raise ValueError("Invalid degrees: {}; should be an int".format(value))
 
     @property
     def bearing_magnetic(self):
@@ -144,11 +144,11 @@ class Params:
     @bearing_magnetic.setter
     def bearing_magnetic(self, value):
         try:
-            if not isinstance(value, float):
-                value = float(value)
+            if not isinstance(value, int):
+                value = int(value)
             self._bearing = value % 360
         except ValueError:
-            raise ValueError("Invalid bearing: {}; should be a float".format(value))
+            raise ValueError("Invalid bearing: {}; should be an int".format(value))
 
     def bearing_true(self, lat, lon, alt=0, date=datetime.date.today()):
         wmm = WorldMagneticModel()
