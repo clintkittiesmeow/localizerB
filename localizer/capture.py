@@ -25,7 +25,7 @@ def capture(params, pass_num=None, reset=None, focused=None):
     _capture_file_gps = _capture_prefix + capture_suffixes["nmea"]
     _output_csv_gps = _capture_prefix + capture_suffixes["coords"]
     _output_csv_test = _capture_prefix + capture_suffixes["meta"]
-    _output_csv_guess = _capture_prefix + capture_suffixes["guess"] if focused else None
+    _output_csv_guess = _capture_prefix + capture_suffixes["guess"] if params.focused else None
 
     # Build capture path and validate directory
     # Set up working folder
