@@ -15,7 +15,14 @@ bearing_max = 720
 bearing_min = -360
 
 # Constants
-RESET_RATE = 4
+# Reset Rate Curve
+# From https://mycurvefit.com/
+#           0                 20
+#         360                  4
+#          90                  7
+#         180                  5
+get_reset_rate = lambda x: 3.235294 + (20 - 3.235294) / (1 + (x / 34.68111) ** 1.29956)
+RESET_RATE = [get_reset_rate(x) for x in range(1080)]
 # Default number of steps per radian
 steps_per_revolution = 200
 degrees_per_step = 360 / steps_per_revolution
@@ -100,7 +107,7 @@ class AntennaStepperThread(threading.Thread):
 
         # Check to see if new bearing is within 0.1
         if not math.isclose(bearing_current, bearing, abs_tol=0.1) and _travel != 0:
-            _travel_duration = abs(_travel) * RESET_RATE / 360
+            _travel_duration = RESET_RATE[abs(_travel)]
             module_logger.info(
                 "Resetting antenna {} degrees (from {} to {})".format(_travel, bearing_current, bearing_current + _travel))
             AntennaStepperThread.rotate(_travel, _travel_duration)
@@ -134,7 +141,7 @@ class AntennaStepperThread(threading.Thread):
 
         :param degrees: Number of degrees to rotate
         :type degrees: int
-        :param duration: Time to take for rotation
+        :param duration: Time to take for rotation for 360 degrees
         :type duration: float
         :return: start, end
         :rtype: tuple
