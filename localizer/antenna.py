@@ -3,6 +3,7 @@ import logging
 import math
 import threading
 import time
+from subprocess import call
 
 import pigpio
 
@@ -35,9 +36,11 @@ DIR_min = 23
 ENA_min = 24
 
 
-pi = pigpio.pi()
-
-if not pi.connected:
+# PIGPIOD bootstrap
+# Try to start pigpiod locally
+if not call(['pigpiod']): # Success if return status is 0
+    pi = pigpio.pi()
+else:
     # Try to connect to remote instance (eg debugging in dev vm)
     pi = pigpio.pi('192.168.137.27', 8888)
 
