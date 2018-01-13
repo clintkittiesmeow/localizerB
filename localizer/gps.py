@@ -4,7 +4,7 @@ import os
 import shutil
 import threading
 import time
-from subprocess import Popen, run
+from subprocess import Popen
 
 import gpsd
 
@@ -23,13 +23,6 @@ def _initialize():
     if shutil.which("gpspipe") is None:
         module_logger.warning("Required system tool 'gpspipe' is not installed. On Debian systems it is found in the package 'gpsd-clients'")
         return False
-
-    # Start cgps (if available) to prime gpsd - sometimes gpsd won't play nice unless we prime it by running cgps
-    module_logger.info("Priming gpsd")
-    try:
-        run(['cgps'], timeout=3)
-    except FileNotFoundError:
-        pass
 
     gpsd.connect()
 
