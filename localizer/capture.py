@@ -164,37 +164,6 @@ def capture(params, pass_num=None, reset=None, focused=None):
         _capture_result_cap, _capture_result_drop = _capture_response_queue.get()
         module_logger.info("Captured {} packets ({} dropped)".format(_capture_result_cap, _capture_result_drop))
 
-    # Perform processing while we wait for threads to finish:
-    _guesses = None
-    _guess_time_start = time.time()
-    if params.focused:
-        module_logger.info("Processing capture")
-        _meta_path = os.path.join(_capture_path, _output_csv_capture)
-        _, _, _, _guesses = process.process_capture(_meta_path, write_to_disk=True, guess=True, clockwise=True, macs=params.macs)
-        _guesses.to_csv(os.path.join(_capture_path, _output_csv_guess), sep=',')
-    _guess_time_end = time.time()
-
-    # Show progress bar of joining threads
-    with tqdm(total=4, desc="{:<35}".format("Waiting for threads")) as pbar:
-
-        # Channel Hopper Thread
-        pbar.update()
-        pbar.refresh()
-        _channel_hopper_thread.join()
-
-        pbar.update()
-        pbar.refresh()
-        _antenna_thread.join()
-
-        pbar.update()
-        pbar.refresh()
-        _gps_thread.join()
-
-        pbar.update()
-        pbar.refresh()
-        _capture_thread.join()
-
-
     # Write capture metadata to disk
     module_logger.info("Writing capture metadata to csv")
     with open(os.path.join(_capture_path, _output_csv_capture), 'w', newline='') as capture_csv:
@@ -226,6 +195,36 @@ def capture(params, pass_num=None, reset=None, focused=None):
                              meta_csv_fieldnames[23]: _guess_time_end - _guess_time_start if _guesses else None,
                              }
         _capture_csv_writer.writerow(_capture_csv_data)
+
+    # Perform processing while we wait for threads to finish:
+    _guesses = None
+    _guess_time_start = time.time()
+    if params.focused:
+        module_logger.info("Processing capture")
+        _meta_path = os.path.join(_capture_path, _output_csv_capture)
+        _, _, _, _guesses = process.process_capture(_meta_path, write_to_disk=True, guess=True, clockwise=True, macs=params.macs)
+        _guesses.to_csv(os.path.join(_capture_path, _output_csv_guess), sep=',')
+    _guess_time_end = time.time()
+
+    # Show progress bar of joining threads
+    with tqdm(total=4, desc="{:<35}".format("Waiting for threads")) as pbar:
+
+        # Channel Hopper Thread
+        pbar.update()
+        pbar.refresh()
+        _channel_hopper_thread.join()
+
+        pbar.update()
+        pbar.refresh()
+        _antenna_thread.join()
+
+        pbar.update()
+        pbar.refresh()
+        _gps_thread.join()
+
+        pbar.update()
+        pbar.refresh()
+        _capture_thread.join()
 
     # Perform focused-level captures
     if params.focused and _guesses is not None and len(_guesses):
