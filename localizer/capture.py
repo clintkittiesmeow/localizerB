@@ -226,7 +226,7 @@ def capture(params, pass_num=None, reset=None, focused=None):
         _capture_csv_writer.writeheader()
         _capture_csv_data[meta_csv_fieldnames[21]] = time.time() - _start_time
         _capture_csv_data[meta_csv_fieldnames[22]] = len(_guesses) if _guesses is not None else None
-        _capture_csv_data[meta_csv_fieldnames[23]] = _guess_time_end - _guess_time_start if _guesses else None
+        _capture_csv_data[meta_csv_fieldnames[23]] = _guess_time_end - _guess_time_start if _guesses is not None else None
         _capture_csv_writer.writerow(_capture_csv_data)
 
     # Perform focused-level captures
