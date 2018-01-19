@@ -17,22 +17,16 @@ from localizer.meta import meta_csv_fieldnames, capture_suffixes, required_suffi
 module_logger = logging.getLogger(__name__)
 
 
-def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True, macs=None):
+def process_capture(meta, path, write_to_disk=False, guess=False, clockwise=True, macs=None):
     """
     Process a captured data set
-    :param meta_file:       path to meta file containing capture results
+    :param meta:            meta dict containing capture results
     :param write_to_disk:   bool designating whether to write to disk
     :param guess:           bool designating whether to return a table of guessed bearings for detected BSSIDs
     :param clockwise:       direction antenna was moving during the capture,
     :param macs:            list of macs to filter on
     :return: (_beacon_count, _results_path):
     """
-
-    _path = os.path.split(meta_file)[0]
-
-    with open(meta_file, 'rt') as meta_csv:
-        _meta_reader = csv.DictReader(meta_csv, dialect='unix')
-        meta = next(_meta_reader)
 
     module_logger.info("Processing capture (meta: {})".format(str(meta)))
 
@@ -71,7 +65,7 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
                         ]
 
     _rows = []
-    _pcap = os.path.join(_path, meta[meta_csv_fieldnames[16]])
+    _pcap = os.path.join(path, meta[meta_csv_fieldnames[16]])
 
     # Build filter string
     _filter = 'wlan[0] == 0x80'
@@ -245,7 +239,7 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
 
     # If a path is given, write the results to a file
     if write_to_disk:
-        _results_path = os.path.join(_path, time.strftime('%Y%m%d-%H-%M-%S') + "-results" + ".csv")
+        _results_path = os.path.join(path, time.strftime('%Y%m%d-%H-%M-%S') + "-results" + ".csv")
         _results_df.to_csv(_results_path, sep=',', index=False)
         module_logger.info("Wrote results to {}".format(_results_path))
         write_to_disk = _results_path
@@ -333,7 +327,12 @@ def process_directory(macs=None, clockwise=True):
                 _file = _get_capture_meta(files)
                 assert _file is not None
                 _path = os.path.join(root, _file)
-                _processes[executor.submit(process_capture, _path, True, False, clockwise, macs)] = _path
+
+                with open(_path, 'rt') as meta_csv:
+                    _meta_reader = csv.DictReader(meta_csv, dialect='unix')
+                    meta = next(_meta_reader)
+
+                _processes[executor.submit(process_capture, meta, root, True, False, clockwise, macs)] = _path
 
         print("Found {} unprocessed data sets".format(len(_processes)))
 

@@ -164,37 +164,29 @@ def capture(params, pass_num=None, reset=None, focused=None):
         _capture_result_cap, _capture_result_drop = _capture_response_queue.get()
         module_logger.info("Captured {} packets ({} dropped)".format(_capture_result_cap, _capture_result_drop))
 
-    # Write capture metadata to disk
-    module_logger.info("Writing capture metadata to csv")
-    with open(os.path.join(_capture_path, _output_csv_capture), 'w', newline='') as capture_csv:
-        _capture_csv_writer = csv.DictWriter(capture_csv, dialect="unix", fieldnames=meta_csv_fieldnames)
-        _capture_csv_writer.writeheader()
-        _capture_csv_data = {meta_csv_fieldnames[0]: params.capture,
-                             meta_csv_fieldnames[1]: pass_num,
-                             meta_csv_fieldnames[2]: _capture_path,
-                             meta_csv_fieldnames[3]: params.iface,
-                             meta_csv_fieldnames[4]: params.duration,
-                             meta_csv_fieldnames[5]: params.hop_int,
-                             meta_csv_fieldnames[6]: _avg_lat,
-                             meta_csv_fieldnames[7]: _avg_lon,
-                             meta_csv_fieldnames[8]: _avg_alt,
-                             meta_csv_fieldnames[9]: _avg_lat_err,
-                             meta_csv_fieldnames[10]: _avg_lon_err,
-                             meta_csv_fieldnames[11]: _avg_alt_err,
-                             meta_csv_fieldnames[12]: loop_start_time,
-                             meta_csv_fieldnames[13]: loop_stop_time,
-                             meta_csv_fieldnames[14]: params.degrees,
-                             meta_csv_fieldnames[15]: params.bearing_magnetic,
-                             meta_csv_fieldnames[16]: _capture_file_pcap,
-                             meta_csv_fieldnames[17]: _capture_file_gps,
-                             meta_csv_fieldnames[18]: _output_csv_gps,
-                             meta_csv_fieldnames[19]: focused,
-                             meta_csv_fieldnames[20]: _output_csv_guess,
-                             meta_csv_fieldnames[21]: time.time() - _start_time,
-                             meta_csv_fieldnames[22]: len(_guesses) if _guesses else None,
-                             meta_csv_fieldnames[23]: _guess_time_end - _guess_time_start if _guesses else None,
-                             }
-        _capture_csv_writer.writerow(_capture_csv_data)
+    # Create Meta Dict
+    _capture_csv_data = {meta_csv_fieldnames[0]: params.capture,
+                         meta_csv_fieldnames[1]: pass_num,
+                         meta_csv_fieldnames[2]: _capture_path,
+                         meta_csv_fieldnames[3]: params.iface,
+                         meta_csv_fieldnames[4]: params.duration,
+                         meta_csv_fieldnames[5]: params.hop_int,
+                         meta_csv_fieldnames[6]: _avg_lat,
+                         meta_csv_fieldnames[7]: _avg_lon,
+                         meta_csv_fieldnames[8]: _avg_alt,
+                         meta_csv_fieldnames[9]: _avg_lat_err,
+                         meta_csv_fieldnames[10]: _avg_lon_err,
+                         meta_csv_fieldnames[11]: _avg_alt_err,
+                         meta_csv_fieldnames[12]: loop_start_time,
+                         meta_csv_fieldnames[13]: loop_stop_time,
+                         meta_csv_fieldnames[14]: params.degrees,
+                         meta_csv_fieldnames[15]: params.bearing_magnetic,
+                         meta_csv_fieldnames[16]: _capture_file_pcap,
+                         meta_csv_fieldnames[17]: _capture_file_gps,
+                         meta_csv_fieldnames[18]: _output_csv_gps,
+                         meta_csv_fieldnames[19]: focused,
+                         meta_csv_fieldnames[20]: _output_csv_guess,
+     }
 
     # Perform processing while we wait for threads to finish:
     _guesses = None
@@ -202,7 +194,7 @@ def capture(params, pass_num=None, reset=None, focused=None):
     if params.focused:
         module_logger.info("Processing capture")
         _meta_path = os.path.join(_capture_path, _output_csv_capture)
-        _, _, _, _guesses = process.process_capture(_meta_path, write_to_disk=True, guess=True, clockwise=True, macs=params.macs)
+        _, _, _, _guesses = process.process_capture(_capture_csv_data, _capture_path, write_to_disk=True, guess=True, clockwise=True, macs=params.macs)
         _guesses.to_csv(os.path.join(_capture_path, _output_csv_guess), sep=',')
     _guess_time_end = time.time()
 
@@ -225,6 +217,17 @@ def capture(params, pass_num=None, reset=None, focused=None):
         pbar.update()
         pbar.refresh()
         _capture_thread.join()
+
+
+    # Write capture metadata to disk
+    module_logger.info("Writing capture metadata to csv")
+    with open(os.path.join(_capture_path, _output_csv_capture), 'w', newline='') as capture_csv:
+        _capture_csv_writer = csv.DictWriter(capture_csv, dialect="unix", fieldnames=meta_csv_fieldnames)
+        _capture_csv_writer.writeheader()
+        _capture_csv_data[meta_csv_fieldnames[21]] = time.time() - _start_time
+        _capture_csv_data[meta_csv_fieldnames[22]] = len(_guesses) if _guesses else None
+        _capture_csv_data[meta_csv_fieldnames[23]] = _guess_time_end - _guess_time_start if _guesses else None
+        _capture_csv_writer.writerow(_capture_csv_data)
 
     # Perform focused-level captures
     if params.focused and _guesses is not None and len(_guesses):

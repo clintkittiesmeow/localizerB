@@ -1,5 +1,6 @@
 import abc
 import configparser
+import csv
 import datetime
 import logging
 import os
@@ -281,7 +282,12 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 _result = capture.capture(self._params, reset=self._params.bearing_magnetic)
                 if _result:
                     _capture_path, _meta = _result
-                    _, _, _, _aps = process.process_capture(os.path.join(_capture_path, _meta), write_to_disk=False, guess=True, macs=self._params.macs)
+
+                    with open(_meta, 'rt') as meta_csv:
+                        _meta_reader = csv.DictReader(meta_csv, dialect='unix')
+                        meta = next(_meta_reader)
+
+                    _, _, _, _aps = process.process_capture(meta, _capture_path, write_to_disk=False, guess=True, macs=self._params.macs)
                     print(_aps)
                 else:
                     raise RuntimeError("Cappture failed")
