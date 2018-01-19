@@ -1,12 +1,12 @@
 Router Number,SSID,CHANNEL,PSK,Model,Firmware,BSSID,Admin,Username,Password,Location,Lat,Lon,Alt
-0,RESEARCH_MULLINS_0,10,drmullinscaptlawresearch,"DIR-615, HW E3",5.1,1c:7e:e5:30:57:4e,192.168.0.1,admin,drmullinscaptlawresearch,Atrium 64?,39.782486,-84.083945,297.4
-1,RESEARCH_MULLINS_1,1,drmullinscaptlawresearch,"DIR-615, HW E3",5.11,00:18:e7:e9:04:59,192.168.0.1,admin,drmullinscaptlawresearch,"64?, Classroom",39.782288,-84.083763,312.7
-2,RESEARCH_MULLINS_2,2,drmullinscaptlawresearch,"DIR-615, HW E3",DD-WRT v24-sp2 3/25/13,00:18:e7:e9:07:f5,192.168.0.1,admin,drmullinscaptlawresearch,"64?, Rm",39.782398,-84.083107,306.1
-3,RESEARCH_MULLINS_3,3,drmullinscaptlawresearch,"WRT55AG, v2",1.67,00:12:17:9f:79:b6,192.168.0.1,,drmullinscaptlawresearch,Mullins' Office,39.782593,-84.082745,299.1
-4,RESEARCH_MULLINS_4,4,drmullinscaptlawresearch,"WRT55AG, v2",1.67,00:16:b6:58:f3:0d,192.168.0.1,,drmullinscaptlawresearch,Under Couch,39.782875,-84.082771,301.6
-5,RESEARCH_MULLINS_5,5,drmullinscaptlawresearch,WRT1200AC v2,2.0.4.173345,60:38:e0:06:2d:9c,192.168.0.1,,drmullinscaptlawresearch,,39.783229,-84.082685,
-6,RESEARCH_MULLINS_6,6,drmullinscaptlawresearch,WRT1200AC v2,2.0.4.173345,60:38:e0:06:3a:d8,192.168.0.1,,drmullinscaptlawresearch,,39.783452,-84.082726,
-7,RESEARCH_MULLINS_7,7,drmullinscaptlawresearch,WRT1200AC v2,2.0.4.173345,60:38:e0:06:34:e8,192.168.0.1,,drmullinscaptlawresearch,,39.783289,-84.083089,
-8,RESEARCH_MULLINS_8,8,drmullinscaptlawresearch,WRT1200AC v2,2.0.4.173345,60:38:e0:06:34:ac,192.168.0.1,,drmullinscaptlawresearch,,39.78325,-84.083226,
-9,RESEARCH_MULLINS_9,9,drmullinscaptlawresearch,WRT1200AC v2,2.0.4.173345,60:38:e0:06:3a:f0,192.168.0.1,,drmullinscaptlawresearch,,39.783421,-84.083837,
-10,RESEARCH_MULLINS_10,10,drmullinscaptlawresearch,"DIR-615, HW E3",5.1,1c:7e:e5:30:54:3e,192.168.0.1,admin,drmullinscaptlawresearch,,39.782486,-84.083945,297.4
+0,RESEARCH_MULLINS_0,10,drmullinscaptlawresearch,"DIR-615, HW E3",5.1,1c:7e:e5:30:57:4e,192.168.0.1,admin,drmullinscaptlawresearch,Atrium 64?,39.782486,-84.083945,292
+1,RESEARCH_MULLINS_1,1,drmullinscaptlawresearch,"DIR-615, HW E3",5.11,00:18:e7:e9:04:59,192.168.0.1,admin,drmullinscaptlawresearch,"64?, Classroom",39.782288,-84.083763,302
+2,RESEARCH_MULLINS_2,2,drmullinscaptlawresearch,"DIR-615, HW E3",DD-WRT v24-sp2 3/25/13,00:18:e7:e9:07:f5,192.168.0.1,admin,drmullinscaptlawresearch,"64?, Rm",39.7824028,-84.083125,302
+3,RESEARCH_MULLINS_3,3,drmullinscaptlawresearch,"WRT55AG, v2",1.67,00:12:17:9f:79:b6,192.168.0.1,,drmullinscaptlawresearch,Mullins' Office,39.7825,-84.08275,302
+4,RESEARCH_MULLINS_4,4,drmullinscaptlawresearch,"WRT55AG, v2",1.67,00:16:b6:58:f3:0d,192.168.0.1,,drmullinscaptlawresearch,Under Couch,39.7828667,-84.0827556,302
+5,RESEARCH_MULLINS_5,5,drmullinscaptlawresearch,WRT1200AC v2,2.0.4.173345,60:38:e0:06:2d:9c,192.168.0.1,,drmullinscaptlawresearch,,39.783219,-84.082669,299
+6,RESEARCH_MULLINS_6,6,drmullinscaptlawresearch,WRT1200AC v2,2.0.4.173345,60:38:e0:06:3a:d8,192.168.0.1,,drmullinscaptlawresearch,,39.783457,-84.082725,307
+7,RESEARCH_MULLINS_7,7,drmullinscaptlawresearch,WRT1200AC v2,2.0.4.173345,60:38:e0:06:34:e8,192.168.0.1,,drmullinscaptlawresearch,,39.783292,-84.083105,296
+8,RESEARCH_MULLINS_8,8,drmullinscaptlawresearch,WRT1200AC v2,2.0.4.173345,60:38:e0:06:34:ac,192.168.0.1,,drmullinscaptlawresearch,,39.783247,-84.083245,304
+9,RESEARCH_MULLINS_9,9,drmullinscaptlawresearch,WRT1200AC v2,2.0.4.173345,60:38:e0:06:3a:f0,192.168.0.1,,drmullinscaptlawresearch,,39.783421,-84.083837,304
+10,RESEARCH_MULLINS_10,10,drmullinscaptlawresearch,"DIR-615, HW E3",5.1,1c:7e:e5:30:54:3e,192.168.0.1,admin,drmullinscaptlawresearch,,39.782486,-84.083945,292
