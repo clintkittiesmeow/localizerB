@@ -39,12 +39,15 @@ meta_csv_fieldnames = ['name',
                        'coords',
                        'focused',
                        'guess',
+                       'elapsed',
+                       'num_guesses',
+                       'guess_time',
                        ]
 
 
 required_suffixes = {"nmea": ".nmea",
                     "pcap": ".pcapng",
-                    "meta": "-test.csv",
+                    "meta": "-capture.csv",
                     "coords": "-gps.csv",
                      }
 
@@ -52,7 +55,7 @@ required_suffixes = {"nmea": ".nmea",
 capture_suffixes = {
                     "guess": "-guess.csv",
                     "results": "-results.csv",
-                    "test": "-test.conf",
+                    "capture": "-capture.conf",
                     }
 
 capture_suffixes.update(required_suffixes)
@@ -70,7 +73,7 @@ class Params:
                     "macs",
                     "channel",
                     "focused",
-                    "test"]
+                    "capture"]
 
     def __init__(self,
                  iface=None,
@@ -82,10 +85,10 @@ class Params:
                  macs=None,
                  channel=None,
                  focused=None,
-                 test=time.strftime('%Y%m%d-%H-%M-%S')):
+                 capture=time.strftime('%Y%m%d-%H-%M-%S')):
 
         # Default Values
-        self._duration = self._degrees = self._bearing = self._hop_int = self._hop_dist = self._macs = self._channel = self._focused = self._test = None
+        self._duration = self._degrees = self._bearing = self._hop_int = self._hop_dist = self._macs = self._channel = self._focused = self._capture = None
         self._iface = iface
         self.duration = duration
         self.degrees = degrees
@@ -95,7 +98,7 @@ class Params:
         self.macs = macs
         self.channel = channel
         self.focused = focused
-        self.test = test
+        self.capture = capture
 
     @property
     def iface(self):
@@ -257,12 +260,12 @@ class Params:
             raise ValueError("Invalid fine: {}; should be a tuple of length 2 (degrees[width], duration > 0)".format(value))
 
     @property
-    def test(self):
-        return self._test
+    def capture(self):
+        return self._capture
 
-    @test.setter
-    def test(self, value):
-        self._test = str(value)
+    @capture.setter
+    def capture(self, value):
+        self._capture = str(value)
 
     # Validation functions
     def validate_antenna(self):
@@ -302,7 +305,7 @@ class Params:
             else:
                 # Highlight 'None' values as red, except for 'test' which is optional
                 signifier = ''
-                if param is not '_test' and val is None:
+                if param is not '_capture' and val is None:
                     signifier = localizer.R
                 retstr += "\t    {:<15}{}{:<15}{}\n".format(str(param[1:]) + ': ', signifier, str(val), localizer.W)
 
@@ -321,5 +324,5 @@ class Params:
             deepcopy(self.macs),
             self.channel,
             deepcopy(self.focused),
-            self.test
+            self.capture
         )

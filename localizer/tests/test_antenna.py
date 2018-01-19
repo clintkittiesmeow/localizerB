@@ -6,7 +6,7 @@ from threading import Event
 from tqdm import trange
 
 import localizer
-from localizer.antenna import AntennaStepperThread
+from localizer.antenna import AntennaThread
 
 _
 
@@ -24,11 +24,11 @@ class TestAntenna(unittest.TestCase):
     def test_2_antenna_rotation(self):
         _response_queue = queue.Queue()
         _flag = Event()
-        _thread = AntennaStepperThread(_response_queue,
-                                       _flag,
-                                       localizer.meta.duration,
-                                       localizer.meta.degrees,
-                                       localizer.meta.bearing)
+        _thread = AntennaThread(_response_queue,
+                                _flag,
+                                localizer.meta.duration,
+                                localizer.meta.degrees,
+                                localizer.meta.bearing)
         _thread.start()
 
         _flag.set()

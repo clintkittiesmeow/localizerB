@@ -20,7 +20,7 @@ module_logger = logging.getLogger(__name__)
 def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True, macs=None):
     """
     Process a captured data set
-    :param meta_file:       path to meta file containing test results
+    :param meta_file:       path to meta file containing capture results
     :param write_to_disk:   bool designating whether to write to disk
     :param guess:           bool designating whether to return a table of guessed bearings for detected BSSIDs
     :param clockwise:       direction antenna was moving during the capture,
@@ -48,7 +48,7 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
 
     # Read results into a DataFrame
     # Build columns
-    _default_columns = ['test',
+    _default_columns = ['capture',
                         'pass',
                         'duration',
                         'hop-rate',
@@ -75,7 +75,7 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
 
     # Build filter string
     _filter = 'wlan[0] == 0x80'
-    # Override any provide mac filter list if we have one in the test metadata
+    # Override any provide mac filter list if we have one in the capture metadata
     if meta_csv_fieldnames[19] in meta and meta[meta_csv_fieldnames[19]]:
         macs = [meta[meta_csv_fieldnames[19]]]
     if macs:
@@ -225,7 +225,7 @@ def process_capture(meta_file, write_to_disk=False, guess=False, clockwise=True,
             _guess_processes = {}
 
             for names, group in _results_df.groupby(['ssid', 'bssid']):
-                _channel = group.groupby('channel').count()['test'].idxmax()
+                _channel = group.groupby('channel').count()['capture'].idxmax()
                 _encryption = pd.unique(group['encryption'])[0]
                 # _cipher = pd.unique(group['cipher'])[0]
                 # _auth = pd.unique(group['auth'])[0]

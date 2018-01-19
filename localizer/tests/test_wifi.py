@@ -43,7 +43,7 @@ class TestWifi(unittest.TestCase):
     def test_3_channel_hop(self):
         _flag = Event()
         _response_queue = queue.Queue()
-        _thread = wifi.ChannelHopper(_flag,
+        _thread = wifi.ChannelThread(_flag,
                                      localizer.meta.iface,
                                      localizer.meta.duration,
                                      localizer.meta.hop_int,

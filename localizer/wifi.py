@@ -176,7 +176,7 @@ def set_channel(iface, channel):
         return False
 
 
-class ChannelHopper(threading.Thread):
+class ChannelThread(threading.Thread):
     def __init__(self, event_flag, iface, duration, hop_int=OPTIMAL_BEACON_INT, response_queue=None, distance=STD_CHANNEL_DISTANCE, init_chan=None, channels=IEEE80211bg):
         """
         Wait for commands on the queue and asynchronously change channels of wireless interface with specified timing.

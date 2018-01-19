@@ -1,7 +1,7 @@
 from queue import Queue
 from threading import Event
 
-from localizer.antenna import AntennaStepperThread
+from localizer.antenna import AntennaThread
 
 degrees = 360
 bearing = 0
@@ -13,7 +13,7 @@ flag = Event()
 
 for i in range(0, len(durations)):
     # Set up thread
-    thread = AntennaStepperThread(queue_response, flag, durations[i], degrees, bearing, False)
+    thread = AntennaThread(queue_response, flag, durations[i], degrees, bearing, False)
     thread.start()
 
     # Execute thread

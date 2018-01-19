@@ -160,9 +160,9 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
     @staticmethod
     def do_process(_):
         """
-        Process the results of all tests in the current working directory.
-        This command will look in each subdirectory of the current path for unprocessed tests
-        It looks for valid *-test.csv, etc, and processes the files to build *.results.csv
+        Process the results of all captures in the current working directory.
+        This command will look in each subdirectory of the current path for unprocessed captures
+        It looks for valid *-capture.csv, etc, and processes the files to build *.results.csv
         """
 
         _processed = process.process_directory()
@@ -218,8 +218,8 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                     self._params.add_mac(localizer.load_macs(value))
                 elif param == "channel":
                     self._params.channel = value
-                elif param == "test":
-                    self._params.test = value
+                elif param == "capture":
+                    self._params.capture = value
 
                 print("Parameter '{}' set to '{}'".format(param, value))
 
@@ -308,9 +308,9 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         """
 
         elements = [localizer.GR + os.getcwd()]
-        if self._params.test:
-            test = (self._params.test[:7] + '..') if len(self._params.test) > 9 else self._params.test
-            elements.append(localizer.G + test)
+        if self._params.capture:
+            capture = (self._params.capture[:7] + '..') if len(self._params.capture) > 9 else self._params.capture
+            elements.append(localizer.G + capture)
         if self._params.iface is not None:
             elements.append(localizer.C + self._params.iface)
         if self._params.duration > 0:
@@ -334,9 +334,9 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
     def do_import(self, args):
         """
-        Import all tests in the current directory, or the test name provided. Tests are files that end in -test.conf
+        Import all captures in the current directory, or the capture name provided. Captures are files that end in -capture.conf
 
-        :param args: test to import
+        :param args: capture to import
         :type args: str
         """
 
@@ -349,20 +349,20 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 if os.path.isfile(arg):
                     _filenames.append(arg)
                 else:
-                    if os.path.isfile(arg + meta.capture_suffixes['test']):
-                        _filenames.append(arg + meta.capture_suffixes['test'])
+                    if os.path.isfile(arg + meta.capture_suffixes['capture']):
+                        _filenames.append(arg + meta.capture_suffixes['capture'])
         else:
-            # Get list of valid test batches in current directory
-            _filenames = [file for file in next(os.walk('.'))[2] if file.endswith(meta.capture_suffixes['test'])]
+            # Get list of valid capture batches in current directory
+            _filenames = [file for file in next(os.walk('.'))[2] if file.endswith(meta.capture_suffixes['capture'])]
 
         print("Found {} batches".format(len(_filenames)))
 
-        # Import tests from each batch
+        # Import captures from each batch
         _count = 0
         for batch in tqdm(_filenames):
             try:
-                _name, _passes, _tests = BatchShell._parse_batch(batch)
-                self._batches.append((_name, _passes, _tests))
+                _name, _passes, _captures = BatchShell._parse_batch(batch)
+                self._batches.append((_name, _passes, _captures))
                 _count += 1
             except ValueError as e:
                 module_logger.error(e)
@@ -370,51 +370,51 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         logging.info("Imported {} batches".format(_count))
 
     def complete_import(self, text, _, __, ___):
-        return [file for file in next(os.walk('.'))[2] if file.startswith(text) and file.endswith(meta.capture_suffixes['test'])]
+        return [file for file in next(os.walk('.'))[2] if file.startswith(text) and file.endswith(meta.capture_suffixes['capture'])]
 
     def do_capture(self, _):
         """
-        Run all the imported tests
+        Run all the imported captures
         """
 
         if not self._batches:
             print("No batches have been imported")
         else:
             _total = 0
-            for _, _passes, _tests in self._batches:
-                _total += len(_tests)*_passes
+            for _, _passes, _captures in self._batches:
+                _total += len(_captures)*_passes
 
             _start_time = time.time()
-            print("Starting batch of {} tests".format(_total))
+            print("Starting batch of {} captures".format(_total))
             _curr = 0
-            for _, _passes, _tests in self._batches:
+            for _, _passes, _captures in self._batches:
                 _len_pass = len(str(_passes))
-                for test in _tests:
+                for cap in _captures:
                     for p in range(_passes):
-                        print(localizer.R + "Test {:>4}/{}\t\t{} elapsed".format(_curr, _total, datetime.timedelta(seconds=time.time()-_start_time)) + localizer.W)
-                        capture.capture(test, str(p).zfill(_len_pass), test.bearing_magnetic)
+                        print(localizer.R + "Capture {:>4}/{}\t\t{} elapsed".format(_curr, _total, datetime.timedelta(seconds=time.time()-_start_time)) + localizer.W)
+                        capture.capture(cap, str(p).zfill(_len_pass), cap.bearing_magnetic)
                         _curr += 1
 
             print("Complete - total time elapsed: {}".format(datetime.timedelta(seconds=time.time()-_start_time)))
 
     def do_get(self, _):
         """
-        Print the tests
+        Print the captures
         """
 
-        for _name, _passes, _tests in self._batches:
-            for test in _tests:
-                print(test)
+        for _name, _passes, _captures in self._batches:
+            for cap in _captures:
+                print(cap)
 
-            print("Batch: {}; {} tests, {} passes each".format(_name, len(_tests), _passes))
+            print("Batch: {}; {} captures, {} passes each".format(_name, len(_captures), _passes))
 
         print("Estimated total runtime: {:0>8}".format(str(self._calculate_runtime())))
 
     def do_pause(self, args):
         """
-        Pause between tests to allow for antenna calibration
+        Pause between captures to allow for antenna calibration
 
-        :param args: True to pause between tests, False to continue to the next test immediately
+        :param args: True to pause between captures, False to continue to the next capture immediately
         :type args: str
         """
 
@@ -436,19 +436,19 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
     def _calculate_runtime(self):
         """
-        Calculate an estimated runtime for the imported tests
+        Calculate an estimated runtime for the imported captures
         :return: Estimated runtime
         :rtype: int
         """
 
         _time = 0
-        for _, _passes, _tests in self._batches:
-            for test in _tests:
-                _time_temp = ((test.duration * _passes))
+        for _, _passes, _captures in self._batches:
+            for cap in _captures:
+                _time_temp = ((cap.duration * _passes))
 
-                if test.focused:
-                    _nmacs = len(test.macs)
-                    _deg, _dur = test.focused
+                if cap.focused:
+                    _nmacs = len(cap.macs)
+                    _deg, _dur = cap.focused
                     _time_fine = (_deg * _dur) / 360
                     _time_fine *= _nmacs
                     _time_temp += _time_fine
@@ -457,36 +457,26 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
         return datetime.timedelta(seconds=_time)
 
-    # def _get_remaining_time(self):
-    #
-    #     global _runtimes, last_time, num_tests, test_position
-    #
-    #     if not _runtimes:
-    #         _runtimes.append(antenna.RESET_RATE + 4)
-    #     else:
-    #         _runtimes.append(time.time() - last_time)
-    #
-    #     last_time = time.time()
 
     @staticmethod
     def _parse_batch(file):
         """
-        Import tests from the supplied batch file
+        Import captures from the supplied batch file
 
         :param file: Path to the file to import
         :type file: str
-        :return: A tuple containing a passes value and a list containing tests
+        :return: A tuple containing a passes value and a list containing captures
         :rtype: (str, int, list)
         """
 
-        _name = file[:file.find(meta.capture_suffixes['test'])]
-        _tests = []
+        _name = file[:file.find(meta.capture_suffixes['capture'])]
+        _captures = []
 
         config = configparser.ConfigParser()
         config.read(file, encoding='ascii')
 
         if not len(config.sections()):
-            raise ValueError("Invalid test config file: {}".format(file))
+            raise ValueError("Invalid capture config file: {}".format(file))
 
         _passes = int(config['meta']['passes'])
 
@@ -494,20 +484,20 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             if section == 'meta':
                 continue
 
-            test = BatchShell._build_test(config[section], config['meta'])
-            if test:
-                _tests.append(test)
+            cap = BatchShell._build_capture(config[section], config['meta'])
+            if cap:
+                _captures.append(cap)
 
-        print("Imported {}/{} tests from {} batch ({} passes)".format(len(_tests), len(config.sections()) - 1, _name, _passes))
-        return _name, _passes, _tests
+        print("Imported {}/{} captures from {} batch ({} passes)".format(len(_captures), len(config.sections()) - 1, _name, _passes))
+        return _name, _passes, _captures
 
     @staticmethod
-    def _build_test(test_section, meta_section):
+    def _build_capture(capture_section, meta_section):
         """
-        Use a dictionary from configparser to build a test object
+        Use a dictionary from configparser to build a capture object
 
-        :param test_section: A dictionary of key and values with test properties
-        :type test_section: dict
+        :param capture_section: A dictionary of key and values with capture properties
+        :type capture_section: dict
         :param meta_section: A dictionary of key and values with default properties
         :type meta_section: dict
         :return: A Params object
@@ -515,8 +505,8 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         """
 
         try:
-            if 'iface' in test_section and test_section['iface']:
-                _iface = test_section['iface']
+            if 'iface' in capture_section and capture_section['iface']:
+                _iface = capture_section['iface']
             elif 'iface' in meta_section and meta_section['iface']:
                 _iface = meta_section['iface']
             else:
@@ -524,75 +514,75 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 if not _iface:
                     raise ValueError("No valid interface provided or available on system")
 
-            if 'duration' in test_section:
-                _duration = test_section['duration']
+            if 'duration' in capture_section:
+                _duration = capture_section['duration']
             elif 'duration' in meta_section:
                 _duration = meta_section['duration']
             else:
                 _duration = capture.OPTIMAL_CAPTURE_DURATION
 
-            if 'degrees' in test_section:
-                _degrees = test_section['degrees']
+            if 'degrees' in capture_section:
+                _degrees = capture_section['degrees']
             elif 'degrees' in meta_section:
                 _degrees = meta_section['degrees']
             else:
                 raise ValueError("No valid degrees")
 
-            if 'bearing' in test_section:
-                _bearing = test_section['bearing']
+            if 'bearing' in capture_section:
+                _bearing = capture_section['bearing']
             elif 'bearing' in meta_section:
                 _bearing = meta_section['bearing']
             else:
                 raise ValueError("No valid bearing")
 
-            if 'hop_int' in test_section:
-                _hop_int = test_section['hop_int']
+            if 'hop_int' in capture_section:
+                _hop_int = capture_section['hop_int']
             elif 'hop_int' in meta_section:
                 _hop_int = meta_section['hop_int']
             else:
                 _hop_int = wifi.OPTIMAL_BEACON_INT
 
-            if 'hop_dist' in test_section:
-                _hop_dist = test_section['hop_dist']
+            if 'hop_dist' in capture_section:
+                _hop_dist = capture_section['hop_dist']
             elif 'hop_dist' in meta_section:
                 _hop_dist = meta_section['hop_dist']
             else:
                 _hop_dist = wifi.STD_CHANNEL_DISTANCE
 
-            if 'test' in test_section:
-                _test = test_section['test']
-            elif 'test' in meta_section:
-                _test = meta_section['test']
+            if 'capture' in capture_section:
+                _capture = capture_section['capture']
+            elif 'capture' in meta_section:
+                _capture = meta_section['capture']
             else:
-                raise ValueError("No valid test")
+                raise ValueError("No valid capture name")
 
-            if 'macs' in test_section:
-                _macs = test_section['macs'].split(',')
+            if 'macs' in capture_section:
+                _macs = capture_section['macs'].split(',')
             elif 'macs' in meta_section:
                 _macs = meta_section['macs'].split(',')
             else:
                 _macs = None
 
-            if 'channel' in test_section:
-                _channel = test_section['channel']
+            if 'channel' in capture_section:
+                _channel = capture_section['channel']
             elif 'channel' in meta_section:
                 _channel = meta_section['channel']
             else:
                 _channel = None
 
-            if 'focused' in test_section:
-                _focused = tuple(test_section['focused'].split(','))
+            if 'focused' in capture_section:
+                _focused = tuple(capture_section['focused'].split(','))
             elif 'focused' in meta_section:
                 _focused = tuple(meta_section['focused'].split(','))
             else:
                 _focused = None
 
-            test = localizer.meta.Params(_iface, _duration, _degrees, _bearing, _hop_int, _hop_dist, _macs, _channel, _focused, _test)
+            cap = localizer.meta.Params(_iface, _duration, _degrees, _bearing, _hop_int, _hop_dist, _macs, _channel, _focused, _capture)
             # Validate iface
             module_logger.debug("Setting iface {}".format(_iface))
-            test.iface = _iface
+            cap.iface = _iface
 
-            return test
+            return cap
 
         except ValueError as e:
             module_logger.warning(e)

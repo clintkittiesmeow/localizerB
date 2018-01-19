@@ -55,7 +55,7 @@ pi.set_mode(ENA_min, pigpio.OUTPUT)
 pi.write(ENA_min, pigpio.HIGH)
 
 
-class AntennaStepperThread(threading.Thread):
+class AntennaThread(threading.Thread):
 
     def __init__(self, response_queue, event_flag, duration, degrees, bearing, reset=None):
 
@@ -78,7 +78,7 @@ class AntennaStepperThread(threading.Thread):
         module_logger.info("Executing Stepper Thread")
 
         # Point the antenna in the right direction
-        AntennaStepperThread.reset_antenna(self._bearing, self._degrees)
+        AntennaThread.reset_antenna(self._bearing, self._degrees)
 
         # Indicate readiness
         self._response_queue.put('r')
@@ -101,20 +101,20 @@ class AntennaStepperThread(threading.Thread):
 
         if self._reset is not None:
             # Reset antenna for next test, assuming next test has same width as current
-            AntennaStepperThread.reset_antenna(self._reset, self._degrees)
+            AntennaThread.reset_antenna(self._reset, self._degrees)
 
     @staticmethod
     def reset_antenna(bearing=bearing_default, degrees=0):
         global bearing_current
 
-        _travel = AntennaStepperThread.determine_best_path(bearing, degrees)
+        _travel = AntennaThread.determine_best_path(bearing, degrees)
 
         # Check to see if new bearing is within 0.1
         if not math.isclose(bearing_current, bearing, abs_tol=0.1) and _travel != 0:
             _travel_duration = RESET_RATE[abs(_travel)]
             module_logger.info(
                 "Resetting antenna {} degrees (from {} to {})".format(_travel, bearing_current, bearing_current + _travel))
-            AntennaStepperThread.rotate(_travel, _travel_duration)
+            AntennaThread.rotate(_travel, _travel_duration)
             bearing_current += _travel
             return True
 
@@ -197,7 +197,7 @@ class AntennaStepperThread(threading.Thread):
         _duration *= 2
         _duration /= 1000000
 
-        _chain, _wid = AntennaStepperThread.generate_ramp(_ramp)
+        _chain, _wid = AntennaThread.generate_ramp(_ramp)
 
         _time_start = time.time()
         pi.wave_chain(_chain)
