@@ -11,13 +11,30 @@ import gps
 import re
 import os
 
+
 aps_file = '../aps.csv'
 _ap_prefix = "RESEARCH_MULLINS_"
 
 
+def setup(directory, dataframe):
+    global bearings, aps, tests
+    
+    aps = import_aps()
+    tests = get_test_gps(directory, dataframe)
+    bearings = load_bearings(tests, aps)
+    
+
 def import_aps(ap_file = aps_file):
     types = {'Router Number': np.int8, 'CHANNEL': np.int8, 'Lat': np.float32, 'Lon': np.float32, 'Alt': np.float32}
     return pd.read_csv(ap_file,sep=',', dtype = types)
+
+ 
+def get_bssid_coord(bssid):
+    global aps
+    
+    _lat = aps[aps.BSSID==bssid].Lat.values[0]
+    _lon = aps[aps.BSSID==bssid].Lon.values[0]
+    return np.array([[_lat, _lon]])
 
 
 def get_names_from_bssid(bssids, concat=False):
@@ -88,7 +105,7 @@ def coords_from_dist_bearing(lat, lon, meters, bearing):
     return (np.rad2deg(dest_lat), np.rad2deg(dest_lon))
 
 
-def distance(lat1, lon1, lat2, lon2):
+def distance(p1, p2):
     """
     Calculate the great circle distance between two points
     on the earth (specified in decimal degrees)
@@ -96,16 +113,22 @@ def distance(lat1, lon1, lat2, lon2):
     All args must be of equal length.    
     Credit: https://stackoverflow.com/a/29546836/1486966
     """
-    lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
+    p1 = np.radians(p1.ravel())
+    p2 = np.radians(p2.ravel())
 
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
+    d = p2 - p1
 
-    a = np.sin(dlat/2.0)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2.0)**2
+    a = np.sin(d[0]/2.0)**2 + np.cos(p1[0]) * np.cos(p2[0]) * np.sin(d[1]/2.0)**2
 
     c = 2 * np.arcsin(np.sqrt(a))
-    km = 6371 * c
-    return km
+    
+    # Calculate radius of points' average latitude
+    a = 6378137
+    b = 6356752
+    avg_lat = (p1[0] + p2[0])/2
+    r = np.sqrt((((a**2)*np.cos(avg_lat))**2 + ((b**2)*np.sin(avg_lat))**2) / ((a*np.cos(avg_lat))**2 + (b*np.sin(avg_lat))**2))
+    m = r * c
+    return m
 
 
 def haversine_bearing(lat1, lon1, lat2, lon2):
@@ -120,17 +143,17 @@ def haversine_bearing(lat1, lon1, lat2, lon2):
 
 
 def load_bearings(tests, access_points):
-    results = {'test':[], 'bssid':[], 'bearing':[], 'lat1':[], 'lon1':[], 'lat2':[], 'lon2':[]}
+    results = {'test':[], 'bssid':[], 'bearing':[], 'lat_test':[], 'lon_test':[], 'lat_ap':[], 'lon_ap':[]}
     
     for _, test in tests.iterrows():
         for _, ap in access_points.iterrows():
             results['test'].append(test['test'])
             results['bssid'].append(ap["BSSID"])
             results['bearing'].append(haversine_bearing(test['lat'], test['lon'], ap['Lat'], ap['Lon']))
-            results['lat1'].append(test['lat'])
-            results['lon1'].append(test['lon'])
-            results['lat2'].append(ap['Lat'])
-            results['lon2'].append(ap['Lon'])
+            results['lat_test'].append(test['lat'])
+            results['lon_test'].append(test['lon'])
+            results['lat_ap'].append(ap['Lat'])
+            results['lon_ap'].append(ap['Lon'])
     
     return pd.DataFrame(results)
 
@@ -149,11 +172,17 @@ def get_test_gps(directory, dataframe):
 def validate_mac(mac):
         return re.match("[0-9a-f]{2}([-:])[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", mac.lower())
 
+    
+def plot_points(points):
+    import matplotlib.pyplot as plt
+    fig = plt.figure()
+    ax = fig.gca()
+    
+    for point in points:
+        ax.scatter(*(point.ravel().tolist()))
+        
+    ax.axis('scaled')
+    ax.autoscale(enable=True, tight=True)
 
-def setup(directory, dataframe):
-    global bearings, aps, tests
-    
-    aps = import_aps()
-    tests = get_test_gps(directory, dataframe)
-    bearings = load_bearings(tests, aps)
-    
+    plt.show()
+    return plt

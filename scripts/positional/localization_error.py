@@ -1,67 +1,14 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Dec  7 16:25:58 2017
-
-@author: blaw
-"""
-
-
+import matplotlib.pyplot as plt
+from tqdm import tqdm, tnrange, tqdm_notebook
+from locate import error_methods, locate_method_helper, smoothing_methods
+from concurrent import futures
+import capmap
 import pandas as pd
 import numpy as np
-import gps
-import capmap
-import os
-import matplotlib.pyplot as plt
-from multiprocessing import Pool, cpu_count
-from tqdm import tqdm, tnrange, tqdm_notebook
-from locate import error_methods, locate_method_helper
-from concurrent import futures
 
-def setup(directory):
-    global dataframe
-    dataframe = import_captures(directory)   
-    capmap.setup(directory, dataframe)
-    return dataframe
-
-
-def import_captures(directory):
-    dataframes = []    
-    
-    # Walk through each subdirectory of working directory
-    for root, dirs, files in os.walk(directory):
-        for file in files:
-            if file.endswith("-results.csv"):
-                dataframes.append(pd.read_csv(os.path.join(root,file),sep=','))
-                
-    df = pd.concat(dataframes, axis=0)
-    df.loc[:,'mw'] = dbm_to_mw(df['ssi'])
-    return df
-    
-    
-def get_test_gps(dataframe, directory):
-    _tests = pd.unique(dataframe["test"])
-    results = {'test':[], 'lat':[], 'lon':[]}
-    for test in _tests:
-        coord, _ = gps.process_directory(os.path.join(directory, test))
-        results['test'].append(test)
-        results['lat'].append(coord[0])
-        results['lon'].append(coord[1])
-    return pd.DataFrame(results)
-
-
-def get_set(test='capture-1', test_pass=1, bssid='00:12:17:9f:79:b6'):
-    global dataframe
-    
-    if not capmap.validate_mac(bssid):
-        bssid = capmap.get_bssids_from_names(ap_name)
-    return dataframe[(dataframe['test'] == test) & (dataframe['pass'] == test_pass) & (dataframe['bssid'] == bssid)]
-
-
-def error(methods, mw=True, true_bearing=True):
+def error(dataframe, methods, smooth_methods=None, mw=True, true_bearing=True):
     # Loop through each set and determine the bearing based on maximum mw
     # Return the error rate as the degrees from the correct bearing
-
-    global dataframe
     
     # Convert single method into list to simplify later code
     if isinstance(methods, str):
@@ -70,14 +17,17 @@ def error(methods, mw=True, true_bearing=True):
     # Ensure all provided methods are legitimate
     for method in methods:
         if method not in error_methods:
-            print(f"You did not specify a valid method '{method}'. Available methods: {_methods}")
+            print(f"You did not specify a valid method '{method}'. Available methods: {methods}")
             return
+        
+    if not isinstance(smooth_methods, list):
+        smooth_methods = [smooth_methods]
     
     _bearing_col = 'bearing_true' if true_bearing else 'bearing_magnetic'
     _power_col = 'mw' if mw else 'ssi'
     
     # Set up lists to hold data
-    _columns = ['test', 'pass', 'bssid', 'samples', 'fallback', 'method', 'error']
+    _columns = ['test', 'pass', 'bssid', 'lat', 'lon', 'samples', 'fallback', 'method', 'smooth', 'bearing', 'guess', 'error']
     _prepped_series = []
     _results = []
     
@@ -95,13 +45,16 @@ def error(methods, mw=True, true_bearing=True):
             for name, group in dataframe.groupby(['test','bssid']):
                 _test = name[0]
                 _bssid = name[1]
-                _bearing_real = capmap.bearings[(capmap.bearings['test'] == _test) & (capmap.bearings['bssid'] == _bssid)]['bearing'].values[0]
-
+                _capmap = capmap.bearings[(capmap.bearings['test'] == _test) & (capmap.bearings['bssid'] == _bssid)]
+                _bearing_real = _capmap['bearing'].values[0]
+                _lat = _capmap['lat_test'].values[0]
+                _lon = _capmap['lon_test'].values[0]
+                
                 pass_groups = group.groupby('pass')
                 for i, sub_group in pass_groups:
                     _fallback = None
                     _samples = len(sub_group)
-                    _params_prep = [_test, i, _bssid, _samples, _fallback, _bearing_real]
+                    _params_prep = [_test, i, _bssid, _lat, _lon, _samples, _fallback, _bearing_real]
                     _prep_processes[executor.submit(prep_for_plot, sub_group, _bearing_col, _power_col)] = _params_prep
 
                 _pbar.update(len(pass_groups))
@@ -117,11 +70,12 @@ def error(methods, mw=True, true_bearing=True):
                 _prepped_series.append((_params_prep_done + [_pass_prepared]))
 
         # Make another pretty progress bar
-        _len = len(_prepped_series)*len(methods)
+        _len = len(_prepped_series)*len(methods)*len(smooth_methods)
         with tqdm_notebook(total = _len, desc="Interpolating") as _pbar:
                 
             for method in methods:
-                _exec_processes[executor.submit(locate_method_helper, method, _prepped_series)] = method
+                for smooth in smooth_methods:
+                    _exec_processes[executor.submit(locate_method_helper, method, smooth, _prepped_series)] = method
 
             # Get the results of interpolation
             for future in futures.as_completed(_exec_processes):
@@ -133,7 +87,7 @@ def error(methods, mw=True, true_bearing=True):
     return pd.DataFrame(_results, columns=_columns)
 
 
-def prep_for_plot(dataframe, x='bearing_true', y='mw', degrees=360):
+def prep_for_plot(dataframe, x='bearing_true', y='mw', expand=True):
     """
     Prepare a dataframe for interpolation by stripping extraneous columns and converting it into a series
     """
@@ -147,20 +101,24 @@ def prep_for_plot(dataframe, x='bearing_true', y='mw', degrees=360):
 
     series_mid = df.set_index('deg').reindex(np.arange(0, 360)).iloc[:,0]
 
-    if degrees == 360:
+    if expand:
         # Extend to the left and right in order to ease interpolation
-        series_left = series_mid.copy()
-        series_left.index = np.arange(-360, 0)
-        series_right = series_mid.copy()
-        series_right.index = np.arange(360, 720)
-
-        series_concat = pd.concat([series_left, series_mid, series_right])
+        series_concat = series_expand(series_mid)
 
         return series_concat
     else:
         return series_mid
 
 
+def series_expand(series):
+    series_left = series.copy()
+    series_left.index = np.arange(-360, 0)
+    series_right = series.copy()
+    series_right.index = np.arange(360, 720)
+
+    return pd.concat([series_left, series, series_right])
+    
+    
 def plot(test, bssid):
     global dataframe
     
@@ -284,8 +242,3 @@ def kml(file='test.kml'):
         
     kml.save(file)
         
-
-def dbm_to_mw(dbm):
-    return 10**(dbm/10)
-
-
