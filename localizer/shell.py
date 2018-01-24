@@ -13,6 +13,7 @@ from tqdm import tqdm
 
 import localizer
 from localizer import wifi, capture, process, meta, antenna
+from localizer.capture import APs
 
 module_logger = logging.getLogger(__name__)
 _file_handler = logging.FileHandler('localizer.log')
@@ -116,7 +117,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         self._params = meta.Params()
         if macs:
             self._params.macs = macs
-        self._aps = {}
+        self._aps = APs()
 
         # Ensure we have root
         if os.getuid() != 0:
@@ -262,16 +263,30 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         """
 
         if self._aps:
-            pprint.pprint(self._aps)
+            print(self._aps)
         else:
             print("No detected aps, or scan hasn't been performed")
 
-    def do_capture(self, _):
+    def do_capture(self, args):
         """
         Start the capture with the needed parameters set
         """
 
-        if not self._params.validate():
+        split_args = args.split()
+
+        if len(split_args) >= 1 and int(split_args[0]) < len(self._aps):
+            # Build focused capture based on selected access point
+            _ap = self._aps[int(split_args[0])]
+            _prediction = _ap.bearing
+            _bearing = _prediction - capture.OPTIMAL_CAPTURE_DEGREES_FOCUSED/2
+            _channel = _ap.channel
+            _bssid = _ap.bssid
+            _try_params = localizer.meta.Params(self._params.iface, capture.OPTIMAL_CAPTURE_DURATION_FOCUSED, capture.OPTIMAL_CAPTURE_DEGREES_FOCUSED, _bearing, hop_int=0, channel= _channel, macs=[_bssid])
+            module_logger.info("Setting capture to focused mode")
+        else:
+            _try_params = self._params
+
+        if not _try_params.validate():
             module_logger.error("You must set 'iface' and 'duration' parameters first")
         else:
             # Shutdown http server if it's on
@@ -279,18 +294,22 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
             module_logger.info("Starting capture")
             try:
-                _result = capture.capture(self._params, reset=self._params.bearing_magnetic)
+                _result = capture.capture(_try_params, reset=_try_params.bearing_magnetic)
                 if _result:
                     _capture_path, _meta = _result
 
-                    with open(_meta, 'rt') as meta_csv:
+                    with open(os.path.join(_capture_path, _meta), 'rt') as meta_csv:
                         _meta_reader = csv.DictReader(meta_csv, dialect='unix')
                         meta = next(_meta_reader)
 
-                    _, _, _, _aps = process.process_capture(meta, _capture_path, write_to_disk=False, guess=True, macs=self._params.macs)
-                    print(_aps)
+                    _, _, _, _aps = process.process_capture(meta, _capture_path, write_to_disk=False, guess=True, macs=_try_params.macs)
+                    if len(self._aps):
+                        self._aps.update(_aps)
+                    else:
+                        self._aps.aps = _aps
+                    print(self._aps)
                 else:
-                    raise RuntimeError("Cappture failed")
+                    raise RuntimeError("Capture failed")
 
             except RuntimeError as e:
                 module_logger.error(e)

@@ -28,6 +28,7 @@ setup(
         'numpy',
         'pigpio',
         'python-dateutil',
+        'tabulate',
     ],
     test_suite='nose.collector',
     tests_require=['nose'],

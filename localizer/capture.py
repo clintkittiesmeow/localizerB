@@ -8,12 +8,16 @@ import time
 from subprocess import PIPE, Popen
 
 import gpsd
+from tabulate import tabulate
 from tqdm import tqdm, trange
 
+import localizer
 from localizer import antenna, wifi, gps, process
 from localizer.meta import meta_csv_fieldnames, capture_suffixes
 
 OPTIMAL_CAPTURE_DURATION = 20
+OPTIMAL_CAPTURE_DURATION_FOCUSED = 6
+OPTIMAL_CAPTURE_DEGREES_FOCUSED = 84
 
 module_logger = logging.getLogger(__name__)
 
@@ -110,19 +114,20 @@ def capture(params, pass_num=None, reset=None, focused=None):
         pbar.refresh()
 
     # Ensure that gps has a 3D fix
-    module_logger.info("Waiting for GPS 3D fix")
-    try:
-        _time_waited = 0
-        while gpsd.get_current().mode != 3:
-            print("Waiting for {}s for 3D gps fix (current mode = '{}' - press 'CTRL-c to cancel)\r"
-                  .format(_time_waited, gpsd.get_current().mode))
-            time.sleep(1)
-            _time_waited += 1
-    except KeyboardInterrupt:
-        print('\nCapture canceled.')
-        return False
-    else:
-        print('\n')
+    if not localizer.debug:
+        module_logger.info("Waiting for GPS 3D fix")
+        try:
+            _time_waited = 0
+            while gpsd.get_current().mode != 3:
+                print("Waiting for {}s for 3D gps fix (current mode = '{}' - press 'CTRL-c to cancel)\r"
+                      .format(_time_waited, gpsd.get_current().mode))
+                time.sleep(1)
+                _time_waited += 1
+        except KeyboardInterrupt:
+            print('\nCapture canceled.')
+            return False
+        else:
+            print('\n')
 
     module_logger.info("Triggering synchronized threads")
     # Start threads
@@ -338,3 +343,33 @@ class CaptureThread(threading.Thread):
         # Respond with actual
         self._response_queue.put((num_cap, num_drop))
         self._response_queue.put((_start_time, _end_time))
+
+
+class APs():
+
+    def __init__(self):
+        self._aps = None
+
+    @property
+    def aps(self):
+        return self._aps
+
+    @aps.setter
+    def aps(self, val):
+        self._aps = val.reset_index(drop=True)
+
+    def update(self, val):
+        for i, row in val.iterrows():
+            self._aps.iloc[self._aps.index[self._aps.bssid == row.bssid][0]] = row
+
+    def __getitem__(self, arg):
+        return self._aps.iloc[arg]
+
+    def __len__(self):
+        if self._aps is None:
+            return 0
+        else:
+            return len(self._aps)
+
+    def __str__(self):
+        return tabulate(self._aps, headers='keys', tablefmt='psql')

@@ -43,7 +43,7 @@ try:
     pi = pigpio.pi()
 except FileNotFoundError:
     # pigpiod is not installed on this system, try connecting to remote instance
-    pi = pigpio.pi('192.168.137.27', 8888)
+    pi = pigpio.pi('192.168.137.34', 8888)
 
 if not pi.connected:
     raise Exception("Need to have pigpiod running")
@@ -122,7 +122,17 @@ class AntennaThread(threading.Thread):
 
     @staticmethod
     def determine_best_path(new_bearing, degrees):
+        """
+        Return an optimized path to arrive at the provided bearing based on how far the travel is and the current state
+        of the antenna.
+
+        :param new_bearing: New bearing to set the antenna to
+        :param degrees: How far will the antenna be traveling from this bearing
+        :return: An optimized (equivalent) bearing to set the antenna
+        """
+
         global bearing_current
+
 
         _edge_case = bool(new_bearing == bearing_current % 360)
         if _edge_case and (bearing_current >= bearing_max or bearing_current <= bearing_min):

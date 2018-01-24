@@ -1,6 +1,5 @@
 from math import gcd, ceil, floor
 
-
 TU = 1024/1000000  # 1 TU = 1024 usec https://en.wikipedia.org/wiki/TU_(Time_Unit)
 STD_BEACON_SCALE = 100
 DEFAULT_START = STD_BEACON_SCALE/10
