@@ -691,6 +691,19 @@ class WiFiConnectShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         """
         Send a ping request to 8.8.8.8 or a provided IP to check internet connectivity
         """
+        _ip = "8.8.8.8"
+
+        arg_split = args.split()
+        if len(arg_split) > 0:
+            _ip = arg_split[0]
+
+        _proc = subprocess.Popen("ping {} -c 5 -I {}".format(_ip, self._iface), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        while True:
+            line = _proc.stdout.readline()
+            if line != '':
+                print(line.decode())
+            else:
+                break
 
     def do_disconnect(self, _):
         """
