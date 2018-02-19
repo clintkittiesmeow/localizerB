@@ -116,18 +116,22 @@ def capture(params, pass_num=None, reset=None, focused=None):
     # Ensure that gps has a 3D fix
     if not localizer.debug:
         module_logger.info("Waiting for GPS 3D fix")
+        _printed = False
         try:
             _time_waited = 0
             while gpsd.get_current().mode != 3:
                 print("Waiting for {}s for 3D gps fix (current mode = '{}' - press 'CTRL-c to cancel)\r"
-                      .format(_time_waited, gpsd.get_current().mode))
+                      .format(_time_waited, gpsd.get_current().mode), end='')
+                _printed = True
                 time.sleep(1)
                 _time_waited += 1
         except KeyboardInterrupt:
             print('\nCapture canceled.')
             return False
-        else:
-            print('\n')
+        finally:
+            if _printed:
+                print('\n')
+
 
     module_logger.info("Triggering synchronized threads")
     # Start threads
