@@ -5,6 +5,7 @@ import datetime
 import logging
 import os
 import pprint
+import subprocess
 import time
 from cmd import Cmd
 from distutils.util import strtobool
@@ -12,7 +13,7 @@ from distutils.util import strtobool
 from tqdm import tqdm
 
 import localizer
-from localizer import wifi, capture, process, meta, antenna
+from localizer import capture, process, meta, antenna, interface
 from localizer.capture import APs
 
 module_logger = logging.getLogger(__name__)
@@ -127,7 +128,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         # WiFi
         module_logger.info("Initializing WiFi")
         # Set interface to first
-        iface = wifi.get_first_interface()
+        iface = interface.get_first_interface()
         if iface is not None:
             self._params.iface = iface
         else:
@@ -186,7 +187,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             module_logger.error("You must provide at least one argument".format(args))
         elif len(split_args) == 1:
             if split_args[0] == "iface":
-                iface = wifi.get_first_interface()
+                iface = interface.get_first_interface()
 
                 if iface is not None:
                     self._params.iface = iface
@@ -244,7 +245,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
         if len(split_args) >= 1:
             if split_args[0] == "ifaces":
-                pprint.pprint(wifi.get_interfaces())
+                pprint.pprint(interface.get_interfaces())
             elif split_args[0] == "params":
                 print(str(self._params))
             elif split_args[0] == "bearing":
@@ -252,7 +253,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             else:
                 module_logger.error("Unknown parameter '{}'".format(split_args[0]))
         else:
-            pprint.pprint(wifi.get_interfaces())
+            pprint.pprint(interface.get_interfaces())
             print(str(self._params))
             print("Debug is {}".format(localizer.debug))
             print("HTTP server is {}".format(localizer.serve))
@@ -320,6 +321,27 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
                 if localizer.serve:
                     localizer.start_httpd()
 
+    def do_connect(self, args):
+        """
+        Connect to the specified access point number from the list command with the provided password.
+        """
+        split_args = args.split()
+
+        if len(split_args) >= 2 and int(split_args[0]) < len(self._aps):
+            # Build focused capture based on selected access point
+            _ap = self._aps[int(split_args[0])]
+            _prediction = int(_ap.bearing)
+            # Set antenna to predicted bearing
+            antenna.AntennaThread.reset_antenna(_prediction)
+
+            # Connect to the access point
+            try:
+                WiFiConnectShell(self._params.iface, _ap.ssid, split_args[1])
+            except ValueError as e:
+                module_logger.error(e)
+        else:
+            print("You must provide an AP number and a password")
+
     @staticmethod
     def do_batch(_):
         """
@@ -356,7 +378,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
         # Start the command loop - these need to be the last lines in the initializer
         self._update_prompt()
-        self.cmdloop("You are now in batch processing mode. Type 'exit' to return to the regular shell")
+        self.cmdloop("You are now in batch processing mode. Type 'exit' to return to the capture shell")
 
     def do_import(self, args):
         """
@@ -536,7 +558,7 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             elif 'iface' in meta_section and meta_section['iface']:
                 _iface = meta_section['iface']
             else:
-                _iface = wifi.get_first_interface()
+                _iface = interface.get_first_interface()
                 if not _iface:
                     raise ValueError("No valid interface provided or available on system")
 
@@ -566,14 +588,14 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             elif 'hop_int' in meta_section:
                 _hop_int = meta_section['hop_int']
             else:
-                _hop_int = wifi.OPTIMAL_BEACON_INT
+                _hop_int = interface.OPTIMAL_BEACON_INT
 
             if 'hop_dist' in capture_section:
                 _hop_dist = capture_section['hop_dist']
             elif 'hop_dist' in meta_section:
                 _hop_dist = meta_section['hop_dist']
             else:
-                _hop_dist = wifi.STD_CHANNEL_DISTANCE
+                _hop_dist = interface.STD_CHANNEL_DISTANCE
 
             if 'capture' in capture_section:
                 _capture = capture_section['capture']
@@ -616,3 +638,68 @@ class BatchShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
     def _update_prompt(self):
         self.prompt = localizer.GR + os.getcwd() + localizer.W + ":" + localizer.G + "batch" + localizer.W + "> "
+
+
+class WiFiConnectShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
+    connect_timeout = 5
+
+    def __init__(self, iface, ap, password):
+        super().__init__()
+
+        self._iface = iface
+        self._ap = ap
+        self._pw = password
+
+        # Kill any existing wpa_supplicant instance
+        subprocess.run(['killall', 'wpa_supplicant'])
+
+        self._mode = interface.get_interface_mode(self._iface)
+        # Take interface out of monitor mode
+        if self._mode != "managed":
+            interface.set_interface_mode(self._iface, "managed")
+
+        print("Connecting to {}...".format(self._ap))
+        # Try to connect - timeout if otherwise
+        self._proc = subprocess.Popen(['/bin/bash', '-c', 'wpa_supplicant -i {} -c <(wpa_passphrase {} {})'.format(self._iface, self._ap, self._pw)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # Wait for process to output "File: ..." to stderr and then set flag for other threads
+        curr_line = ""
+        try:
+            _time_waited = 0
+            while "CTRL-EVENT-CONNECTED" not in curr_line:
+                curr_line = self._proc.stdout.readline().decode()
+                module_logger.debug("wpa_supplicant: {}".format(curr_line))
+                time.sleep(.1)
+                _time_waited += .1
+                if _time_waited >= WiFiConnectShell.connect_timeout:
+                    raise TimeoutError()
+        except TimeoutError:
+            self.do_disconnect(None)
+            raise ValueError("Timed out connecting to {}".format(self._ap))
+
+        print("Getting IP address, waiting 10 seconds...")
+        try:
+            subprocess.run(['dhclient', self._iface], timeout=10)
+        except subprocess.TimeoutExpired:
+            self.do_disconnect(None)
+            raise ValueError("Timed out getting IP address")
+
+        # Start the command loop - these need to be the last lines in the initializer
+        self._update_prompt()
+        self.cmdloop("You are now connected to {}. Type 'disconnect' to disconnect and return to the capture shell".format(self._ap))
+
+    def do_ping(self, args):
+        """
+        Send a ping request to 8.8.8.8 or a provided IP to check internet connectivity
+        """
+
+    def do_disconnect(self, _):
+        """
+        Disconnect from the current AP
+        """
+        self._proc.kill()
+        subprocess.run(['killall', 'wpa_supplicant'])
+        interface.set_interface_mode(self._iface, self._mode)
+        return self.do_exit(None)
+
+    def _update_prompt(self):
+        self.prompt = localizer.GR + os.getcwd() + localizer.W + ":" + localizer.G + "connect:" + self._ap + localizer.W + "> "

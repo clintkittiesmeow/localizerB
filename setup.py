@@ -29,6 +29,7 @@ setup(
         'pigpio',
         'python-dateutil',
         'tabulate',
+        'wifi==0.8.0rc1',
     ],
     test_suite='nose.collector',
     tests_require=['nose'],

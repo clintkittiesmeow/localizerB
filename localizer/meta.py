@@ -106,8 +106,8 @@ class Params:
 
     @iface.setter
     def iface(self, value):
-        from localizer import wifi
-        if value in list(wifi.get_interfaces()):
+        from localizer import interface
+        if value in list(interface.get_interfaces()):
             self._iface = value
         else:
             raise ValueError("Invalid interface: {}".format(value))

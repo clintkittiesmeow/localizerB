@@ -10,7 +10,7 @@ from tqdm import trange
 
 import localizer
 from localizer.capture import CaptureThread
-from localizer.wifi import get_first_interface
+from localizer.interface import get_first_interface
 
 
 class TestCapture(unittest.TestCase):
@@ -66,7 +66,7 @@ class TestCapture(unittest.TestCase):
 # Script can be run standalone
 if __name__ == "__main__":
     import argparse
-    from localizer import wifi
+    from localizer import interface
 
     parser = argparse.ArgumentParser(description="Test packet capture by capturing from dumpcap")
     parser.add_argument("duration",
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     parser.add_argument("iface",
                         help="Interface to test",
                         nargs='?',
-                        default=wifi.get_first_interface())
+                        default=interface.get_first_interface())
     parser.add_argument("path",
                         help="Temporary path to write test output",
                         nargs='?',

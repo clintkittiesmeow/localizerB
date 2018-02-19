@@ -1,7 +1,8 @@
-from subprocess import call
 import os
-from localizer.wifi import get_first_interface
 import timeit
+from subprocess import call
+
+from localizer.interface import get_first_interface
 
 DN = open(os.devnull, 'w')
 

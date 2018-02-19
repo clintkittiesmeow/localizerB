@@ -12,7 +12,7 @@ from tabulate import tabulate
 from tqdm import tqdm, trange
 
 import localizer
-from localizer import antenna, wifi, gps, process
+from localizer import antenna, gps, process, interface
 from localizer.meta import meta_csv_fieldnames, capture_suffixes
 
 OPTIMAL_CAPTURE_DURATION = 20
@@ -103,12 +103,12 @@ def capture(params, pass_num=None, reset=None, focused=None):
         pbar.refresh()
 
         # Set up WiFi channel scanner thread
-        _channel_hopper_thread = wifi.ChannelThread(_capture_ready,
-                                                    params.iface,
-                                                    params.duration,
-                                                    params.hop_int,
-                                                    distance=params.hop_dist,
-                                                    init_chan=params.channel)
+        _channel_hopper_thread = interface.ChannelThread(_capture_ready,
+                                                         params.iface,
+                                                         params.duration,
+                                                         params.hop_int,
+                                                         distance=params.hop_dist,
+                                                         init_chan=params.channel)
         _channel_hopper_thread.start()
         pbar.update()
         pbar.refresh()
@@ -300,10 +300,8 @@ class CaptureThread(threading.Thread):
             exit(1)
 
         # Ensure we are in monitor mode
-        from localizer import wifi
-
-        while wifi.get_interface_mode(self._iface) != "monitor":
-            wifi.set_interface_mode(self._iface, "monitor")
+        while interface.get_interface_mode(self._iface) != "monitor":
+            interface.set_interface_mode(self._iface, "monitor")
 
     def run(self):
         module_logger.info("Executing capture thread")
@@ -366,6 +364,8 @@ class APs():
             # If it's not in the current list, add it
             else:
                 self._aps = self._aps.append(row)
+
+        self._aps.reset_index(inplace=True, drop=True)
 
     def __getitem__(self, arg):
         return self._aps.iloc[arg]
