@@ -149,7 +149,7 @@ def capture(params, pass_num=None, reset=None, focused=None):
             return False
 
     # Print out timer to console
-    for _ in trange(params.duration + 1, desc="{:<35}"
+    for _ in trange(int(params.duration), desc="{:<35}"
                     .format("Capturing packets for {}s".format((str(params.duration))))):
         time.sleep(1)
 
@@ -308,7 +308,7 @@ class CaptureThread(threading.Thread):
     def run(self):
         module_logger.info("Executing capture thread")
 
-        _dur = self._duration + 1
+        _dur = int(self._duration + 1)
         command = [self._pcap_util] + self._pcap_params + ["-a", "duration:{}".format(_dur), "-w", self._output]
 
         # Wait for synchronization signal
@@ -360,7 +360,12 @@ class APs():
 
     def update(self, val):
         for i, row in val.iterrows():
-            self._aps.iloc[self._aps.index[self._aps.bssid == row.bssid][0]] = row
+            # If the new row exists in the dataframe, update the existing value
+            if row.bssid in self._aps.bssid.unique():
+                self._aps.iloc[self._aps.index[self._aps.bssid == row.bssid][0]] = row
+            # If it's not in the current list, add it
+            else:
+                self._aps = self._aps.append(row)
 
     def __getitem__(self, arg):
         return self._aps.iloc[arg]

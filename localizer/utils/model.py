@@ -11,7 +11,7 @@ def symmetric_sigmoid(x, a, b, c, d):
     #         360                  4
 
 x = [0,90,180,360]
-y = [20,7,5,4]
+y = [20,10,8,6]
 
 best_vals, _ = curve_fit(symmetric_sigmoid, x, y)
 
@@ -23,3 +23,4 @@ ax = plt.gca()
 ax.plot(range(1080), RESET_RATE)
 ax.set_xlim([0,1080])
 plt.show()
+print(best_vals)

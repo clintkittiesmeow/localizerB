@@ -279,7 +279,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             _ap = self._aps[int(split_args[0])]
             _prediction = _ap.bearing
             _bearing = _prediction - capture.OPTIMAL_CAPTURE_DEGREES_FOCUSED/2
-            _duration = capture.OPTIMAL_CAPTURE_DURATION_FOCUSED * capture.OPTIMAL_CAPTURE_DEGREES_FOCUSED / 360
+            _duration = antenna.FOCUSED_RATE[capture.OPTIMAL_CAPTURE_DEGREES_FOCUSED] * capture.OPTIMAL_CAPTURE_DEGREES_FOCUSED / 360
             _channel = _ap.channel
             _bssid = _ap.bssid
             _try_params = localizer.meta.Params(self._params.iface, _duration, capture.OPTIMAL_CAPTURE_DEGREES_FOCUSED, _bearing, hop_int=0, channel= _channel, macs=[_bssid])

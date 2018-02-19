@@ -228,7 +228,7 @@ def process_capture(meta, path, write_to_disk=False, guess=False, clockwise=True
                     names = ('<blank>', names[1])
 
                 _row = [names[0], names[1], _channel, _encryption, _strength]
-                _guess_processes[executor.submit(locate.interpolate, group, meta[meta_csv_fieldnames[14]])] = _row
+                _guess_processes[executor.submit(locate.interpolate, group, int(meta['degrees']))] = _row
 
             for future in futures.as_completed(_guess_processes):
                 _row = _guess_processes[future]

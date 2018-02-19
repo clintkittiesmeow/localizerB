@@ -24,6 +24,10 @@ bearing_min = -360
 #         360                  4
 get_reset_rate = lambda x: 3.235294 + (20 - 3.235294) / (1 + (x / 34.68111) ** 1.29956)
 RESET_RATE = [get_reset_rate(x) for x in range(1080)]
+get_focused_rate = lambda x: -4 + (20 + 4) / (1 + (x / 180) ** 0.48542683)
+FOCUSED_RATE = [get_focused_rate(x) for x in range(360)]
+#-4.           20.          180.            0.48542683
+
 # Default number of steps per radian
 steps_per_revolution = 200
 degrees_per_step = 360 / steps_per_revolution
@@ -43,7 +47,7 @@ try:
     pi = pigpio.pi()
 except FileNotFoundError:
     # pigpiod is not installed on this system, try connecting to remote instance
-    pi = pigpio.pi('192.168.137.34', 8888)
+    pi = pigpio.pi('192.168.137.61', 8888)
 
 if not pi.connected:
     raise Exception("Need to have pigpiod running")

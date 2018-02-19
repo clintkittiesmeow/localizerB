@@ -15,7 +15,7 @@ def locate_interpolate(series_concat, method):
     return series_inter.idxmax()
 
 
-def prep_for_interpolation(dataframe, expand_to_360=True, x='bearing_magnetic', y='mw'):
+def prep_for_interpolation(dataframe, bearing, x='bearing_magnetic', y='mw'):
     """
     Prepare a dataframe for interpolation by stripping extraneous columns and converting it into a series
     """
@@ -29,7 +29,7 @@ def prep_for_interpolation(dataframe, expand_to_360=True, x='bearing_magnetic', 
 
     series_mid = df.set_index('deg').reindex(np.arange(0, 360)).iloc[:, 0]
 
-    if expand_to_360:
+    if bearing >= 360:
         # Extend to the left and right in order to ease interpolation
         series_left = series_mid.copy()
         series_left.index = np.arange(-360, 0)
@@ -43,7 +43,7 @@ def prep_for_interpolation(dataframe, expand_to_360=True, x='bearing_magnetic', 
         return series_mid
 
 
-def interpolate(series, expand_to_360=True):
+def interpolate(series, bearing):
     """
     Interpolate the given series in the best manner based on testing
     :param series: Pandas Series
@@ -51,12 +51,14 @@ def interpolate(series, expand_to_360=True):
     :return:
     """
 
-    if 0 > len(series) <= 6:
+    if 0 > len(series) <= 1:
+        _method = 'slinear'
+    elif 1 > len(series) <= 2:
         _method = 'naive'
     else:
         _method = 'pchip'
 
-    _guess = _error_methods[_method](prep_for_interpolation(series, expand_to_360))
+    _guess = _error_methods[_method](prep_for_interpolation(series, bearing))
     return _guess, _method
 
 

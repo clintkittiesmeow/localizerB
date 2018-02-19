@@ -77,7 +77,7 @@ class Params:
 
     def __init__(self,
                  iface=None,
-                 duration=15,
+                 duration=15.0,
                  degrees=360,
                  bearing=0,
                  hop_int=OPTIMAL_BEACON_INT,
@@ -119,13 +119,13 @@ class Params:
     @duration.setter
     def duration(self, value):
         try:
-            if not isinstance(value, int):
-                value = int(float(value))
+            if not isinstance(value, float):
+                value = float(value)
             if value < 0:
                 raise ValueError()
             self._duration = value
         except ValueError:
-            raise ValueError("Invalid duration: {}; should be an integer >= 0".format(value))
+            raise ValueError("Invalid duration: {}; should be a float >= 0".format(value))
 
     @property
     def degrees(self):
