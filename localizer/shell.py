@@ -697,13 +697,9 @@ class WiFiConnectShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
         if len(arg_split) > 0:
             _ip = arg_split[0]
 
-        _proc = subprocess.Popen(['ping', _ip, '-c', str(5), '-I', self._iface], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        while True:
-            line = _proc.stdout.readline()
-            if line != '':
-                print(line.decode())
-            else:
-                break
+        with subprocess.Popen(['ping', _ip, '-c', str(3), '-I', self._iface], stdout=subprocess.PIPE, bufsize=1, universal_newlines=True) as _proc:
+            for line in _proc.stdout:
+                print(line, end='')
 
     def do_disconnect(self, _):
         """
