@@ -14,6 +14,10 @@
 %%   \import{<path to file>}{<filename>.pgf}
 %%
 %% Matplotlib used the following preamble
+%%   \usepackage{amsmath}
+%%   \usepackage{gensymb}
+%%   \usepackage{siunitx}
+%%   \DeclareSIUnit{\revolution}{rev}
 %%   \usepackage{fontspec}
 %%   \setsansfont{DejaVu Sans}
 %%   \setmonofont{DejaVu Sans Mono}

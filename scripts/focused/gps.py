@@ -33,7 +33,7 @@ def process_directory(directory=os.getcwd(), plot=False):
     # Walk through each subdirectory of working directory
     for root, dirs, files in os.walk(directory):
         for file in files:
-            if file.endswith("-test.csv"):
+            if file.endswith("-capture.csv"):
                 tests.add(os.path.join(root,file))
 
     for test in tests:

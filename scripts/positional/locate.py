@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
-import localization_error
+import bearing_error
 
 def locate_method_helper(method, smooth, series_list):
     _results = []
@@ -12,7 +12,7 @@ def locate_method_helper(method, smooth, series_list):
         try:
             _guess = interpolate(series, method, smooth).idxmax()
         except ValueError:
-            _fallback_method = 'naive'
+            _fallback_method = 'Naive'
             param[-3] = method # Set fallback to failed method
             _guess = interpolate(series, _fallback_method, smooth).idxmax()
         finally:
@@ -44,6 +44,7 @@ smoothing_methods = {
 # Interpolation Methods      
 
 def interpolate(series_concat, method, smooth=None):
+    method = error_methods[method]
     if method == 'random':
         series = pd.Series(np.random.randn(1,360).ravel())
     elif method == 'naive':
@@ -56,17 +57,16 @@ def interpolate(series_concat, method, smooth=None):
     
     return series[np.arange(0,360)]
 
-error_methods = [
-    'naive',
-    'quadratic',
-    'cubic', 'linear',
-    'slinear',
-    'barycentric',
-    'krogh',
-    'piecewise_polynomial',
-    'from_derivatives',
-    'pchip',
-    'akima',
-    'random'
-]
-
+error_methods = {
+    'Naive':'naive',
+    'Quadratic':'quadratic',
+    'Cubic':'cubic',
+    'Linear':'linear',
+    'SLinear':'slinear',
+    'Barycentric':'barycentric',
+    'Krogh':'krogh',
+    'BPoly':'from_derivatives',
+    'PCHIP':'pchip',
+    'Akima':'akima',
+    'Random':'random'
+}

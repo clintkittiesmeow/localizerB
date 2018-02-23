@@ -37,7 +37,7 @@ def get_bssid_coord(bssid):
     return np.array([[_lat, _lon]])
 
 
-def get_names_from_bssid(bssids, concat=False):
+def get_names_from_bssid(bssids, concat=False, escape=False):
     """
     Create a list of AP names based on provided bssids
     """
@@ -48,8 +48,10 @@ def get_names_from_bssid(bssids, concat=False):
         _return = []
         for bssid in bssids:
             _val = aps[aps['BSSID']==bssid].SSID.values[0]
+            if escape:
+                _val = _val.replace('_', r'\_')
             if concat:
-                _val = f"{_val} - {bssid}"
+                _val = f"{_val} \\\\ {bssid}"
             _return.append(_val)
             
         return _return

@@ -109,11 +109,11 @@ def plot_results(rays, ans, obj=None):
         quiver_kwargs = {}
         
         vector_plot_args = [POINTS[:,0], POINTS[:,1]]
-        vector_plot_kwargs = {'linestyle':'None', 'marker':'o', 'markeredgecolor':'r'}
+        vector_plot_kwargs = {'linestyle':'None', 'marker':'o', 'color':'r'}
         
         ans_x = ans.x.tolist()
         loc_plot_args = [ans_x[0], ans_x[1]]
-        loc_plot_kwargs = {'marker':'o', 'c':'g'}
+        loc_plot_kwargs = {'marker':'D', 'c':'g'}
             
         if isinstance(obj, np.ndarray):
             object_plot_args = [obj[0][0], obj[0][1]]
@@ -134,17 +134,34 @@ def plot_results(rays, ans, obj=None):
         # Plot vectors
         ax.quiver(*quiver_args, **quiver_kwargs)
         # Plot vector origins
-        ax.plot(*vector_plot_args, **vector_plot_kwargs)
+        ax.plot(*vector_plot_args, **vector_plot_kwargs, label='Capture Location')
         # Plot calculated nearest point
-        ax.scatter(*loc_plot_args, **loc_plot_kwargs)
+        ax.scatter(*loc_plot_args, **loc_plot_kwargs, label='Prediction')
         
         if isinstance(obj, np.ndarray):
             # Plot object
-            ax.scatter(*object_plot_args, **object_plot_kwargs)        
+            ax.scatter(*object_plot_args, **object_plot_kwargs, label='Emitter')        
         
         ax.axis('scaled')
+        xl = ax.get_xlim()
+        yl = ax.get_ylim()
+        xlen = abs(xl[0]-xl[1])
+        ylen = abs(yl[0]-yl[1])
         
-        plt.show()
+        if xlen > ylen:
+            buff = (xlen - ylen)/2
+            yn = (yl[0]-buff, yl[1]+buff)
+            xn = xl
+        else:
+            buff = (ylen - xlen)/2
+            xn = (xl[0]-buff, xl[1]+buff)
+            yn = yl
+        
+        ax.set_xlim(xn)
+        ax.set_ylim(yn)
+        
+        
+        return ax, fig
 
             
 def locate_random_rays(n=3, dims=3):
@@ -196,8 +213,7 @@ def locate_random_rays(n=3, dims=3):
 
 def locate_real_rays(rays, obj=None):
     ans = locate(rays)
-    plot_results(rays, ans, obj)
-    return ans
+    return plot_results(rays, ans, obj)
                  
     
 def bearing_to_vector(bearing):
