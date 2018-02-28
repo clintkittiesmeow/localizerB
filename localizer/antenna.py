@@ -17,16 +17,13 @@ bearing_min = -360
 
 # Constants
 # Reset Rate Curve
-# From https://mycurvefit.com/
-#           0                 20
-#          90                  7
-#         180                  5
-#         360                  4
+# From utils/model.py
+#   x = [0,90,180,360]
+#   y = [20,10,8,6]
 get_reset_rate = lambda x: 3.235294 + (20 - 3.235294) / (1 + (x / 34.68111) ** 1.29956)
 RESET_RATE = [get_reset_rate(x) for x in range(1080)]
 get_focused_rate = lambda x: -4 + (20 + 4) / (1 + (x / 180) ** 0.48542683)
 FOCUSED_RATE = [get_focused_rate(x) for x in range(360)]
-#-4.           20.          180.            0.48542683
 
 # Default number of steps per radian
 steps_per_revolution = 200

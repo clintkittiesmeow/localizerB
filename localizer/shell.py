@@ -283,7 +283,7 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
             _duration = antenna.FOCUSED_RATE[capture.OPTIMAL_CAPTURE_DEGREES_FOCUSED] * capture.OPTIMAL_CAPTURE_DEGREES_FOCUSED / 360
             _channel = _ap.channel
             _bssid = _ap.bssid
-            _try_params = localizer.meta.Params(self._params.iface, _duration, capture.OPTIMAL_CAPTURE_DEGREES_FOCUSED, _bearing, hop_int=0, channel= _channel, macs=[_bssid])
+            _try_params = localizer.meta.Params(self._params.iface, _duration, capture.OPTIMAL_CAPTURE_DEGREES_FOCUSED, _bearing, hop_int=0, channel=_channel, macs=[_bssid])
             module_logger.info("Setting capture to focused mode")
         else:
             _try_params = self._params
@@ -302,9 +302,9 @@ class LocalizerShell(ExitCmd, ShellCmd, DirCmd, DebugCmd):
 
                     with open(os.path.join(_capture_path, _meta), 'rt') as meta_csv:
                         _meta_reader = csv.DictReader(meta_csv, dialect='unix')
-                        meta = next(_meta_reader)
+                        meta_values = next(_meta_reader)
 
-                    _, _, _, _aps = process.process_capture(meta, _capture_path, write_to_disk=False, guess=True, macs=_try_params.macs)
+                    _, _, _, _aps = process.process_capture(meta_values, _capture_path, write_to_disk=False, guess=True, macs=_try_params.macs)
                     if len(self._aps):
                         self._aps.update(_aps)
                     else:
