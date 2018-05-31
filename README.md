@@ -2,6 +2,8 @@
 
 TODO: Roll in documentation to README.md
 
+Localizer Demonstration Video: https://youtu.be/UWxWPqCuli8
+
 ## Dependencies
 
 ### Required System Tools
