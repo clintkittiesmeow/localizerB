@@ -1,5 +1,7 @@
 # localizer
 
+TODO: Roll in documentation to README.md
+
 ## Dependencies
 
 ### Required System Tools
