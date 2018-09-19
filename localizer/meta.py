@@ -2,7 +2,8 @@ import datetime
 import re
 import time
 
-from geomag import WorldMagneticModel
+#CB from geomag import WorldMagneticModel
+import geomag
 
 import localizer
 
@@ -154,8 +155,9 @@ class Params:
             raise ValueError("Invalid bearing: {}; should be an int".format(value))
 
     def bearing_true(self, lat, lon, alt=0, date=datetime.date.today()):
-        wmm = WorldMagneticModel()
-        declination = wmm.calc_mag_field(lat, lon, alt, date).declination
+        #CB wmm = WorldMagneticModel()
+        #CB declination = wmm.calc_mag_field(lat, lon, alt, date).declination
+        declination = geomag.declination(lat, lon) #CB
         return self._bearing + declination
 
     @property
