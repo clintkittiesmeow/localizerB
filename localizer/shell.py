@@ -22,6 +22,8 @@ _file_handler.setLevel(logging.DEBUG)
 _file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s: %(message)s'))
 module_logger.addHandler(_file_handler)
 module_logger.info("****STARTING LOCALIZER****")
+print("****STARTING LOCALIZER****")
+print("Localizer Version B-01A")
 
 
 # Helper class for exit functionality

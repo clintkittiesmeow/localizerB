@@ -8,7 +8,10 @@ from datetime import date
 import pandas as pd
 import pyshark
 from dateutil import parser
-from geomag import WorldMagneticModel
+#CB from geomag import WorldMagneticModel
+import geomag #CB
+
+
 from tqdm import tqdm
 
 from localizer import locate
@@ -34,11 +37,16 @@ def process_capture(meta, path, write_to_disk=False, guess=False, clockwise=True
     _beacon_failures = 0
 
     # Correct bearing to compensate for magnetic declination
-    _declination = WorldMagneticModel()\
-        .calc_mag_field(float(meta[meta_csv_fieldnames[6]]),
-                        float(meta[meta_csv_fieldnames[7]]),
-                        date=date.fromtimestamp(float(meta["start"])))\
-        .declination
+    #CB _declination = WorldMagneticModel()\
+    #CB     .calc_mag_field(float(meta[meta_csv_fieldnames[6]]),
+    #CB                     float(meta[meta_csv_fieldnames[7]]),
+    #CB                     date=date.fromtimestamp(float(meta["start"])))\
+    #CB     .declination
+    lat = float(meta[meta_csv_fieldnames[6]]) # CB
+    lon = float(meta[meta_csv_fieldnames[7]]) # CB
+    start_date = date.fromtimestamp(float(meta["start"])) # CB
+    alt = 0
+    _declination = geomag.declination(lat, lon, alt, start_date)  # CB
 
     # Read results into a DataFrame
     # Build columns
