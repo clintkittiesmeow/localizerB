@@ -76,7 +76,7 @@ def process_capture(meta, path, write_to_disk=False, guess=False, clockwise=True
     _pcap = os.path.join(path, meta[meta_csv_fieldnames[16]])
 
     # Build filter string
-    _filter = 'wlan[0] == 0x80'
+    _filter = 'wlan' #CB: 'wlan[0] == 0x80'
     # Override any provide mac filter list if we have one in the capture metadata
     if meta_csv_fieldnames[19] in meta and meta[meta_csv_fieldnames[19]]:
         macs = [meta[meta_csv_fieldnames[19]]]
